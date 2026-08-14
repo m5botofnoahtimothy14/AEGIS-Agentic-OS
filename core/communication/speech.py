@@ -32,6 +32,9 @@ except ImportError:
 SATURDAY_VOICE = os.getenv("SATURDAY_TTS_VOICE", "en-US-ChristopherNeural")
 SATURDAY_VOICE_RATE = os.getenv("SATURDAY_TTS_RATE", "+0%")
 SATURDAY_VOICE_PITCH = os.getenv("SATURDAY_TTS_PITCH", "+0Hz")
+EDITH_VOICE = os.getenv("EDITH_TTS_VOICE", "en-US-AriaNeural")
+EDITH_VOICE_RATE = os.getenv("EDITH_TTS_RATE", "+10%")
+EDITH_VOICE_PITCH = os.getenv("EDITH_TTS_PITCH", "+0Hz")
 
 
 class SpeechManager:
@@ -44,19 +47,19 @@ class SpeechManager:
         self._init_backend()
 
     def _init_backend(self):
-        self._init_piper()
-        if self.piper_voice:
-            self.backend = "piper"
-            self._speaker_thread = threading.Thread(target=self._speaker_loop, daemon=True)
-            self._speaker_thread.start()
-            logger.info("TTS backend: Piper (DL)")
-            return
-
         if EDGE_TTS_AVAILABLE:
             self.backend = "edge-tts"
             self._speaker_thread = threading.Thread(target=self._speaker_loop, daemon=True)
             self._speaker_thread.start()
             logger.info(f"TTS backend: Edge TTS (voice={SATURDAY_VOICE})")
+            return
+
+        self._init_piper()
+        if self.piper_voice:
+            self.backend = "piper"
+            self._speaker_thread = threading.Thread(target=self._speaker_loop, daemon=True)
+            self._speaker_thread.start()
+            logger.info("TTS backend: Piper (single-voice fallback)")
             return
 
         self._speaker_thread = threading.Thread(target=self._speaker_loop, daemon=True)
@@ -89,35 +92,65 @@ class SpeechManager:
     def available(self) -> bool:
         return self.piper_voice is not None or self.backend == "edge-tts" or sd is not None
 
-    def speak(self, text: str, lang_hint: str = None):
+    def speak(self, text: str, lang_hint: str = None, persona: str = None):
         if not text:
             return
         if self._queue.qsize() > 10:
             return
-        self._queue.put((text, lang_hint))
+        self._queue.put((text, lang_hint, persona))
 
     def _speaker_loop(self):
         while True:
             try:
-                text, lang_hint = self._queue.get()
+                text, lang_hint, persona = self._queue.get()
                 with self._lock:
+                    persona = self._resolve_persona(text, persona)
+                    spoken_text = self._spoken_text(text)
                     if self.backend == "piper" and self.piper_voice:
-                        self._speak_piper(text)
+                        self._speak_piper(spoken_text)
                     elif self.backend == "edge-tts":
-                        self._speak_edge(text)
+                        self._speak_edge(spoken_text, persona)
                     else:
-                        self._speak_fallback(text)
+                        self._speak_fallback(spoken_text)
             except Exception as e:
                 logger.warning(f"Speech error: {e}")
 
-    def _speak_edge(self, text: str):
+    def _resolve_persona(self, text: str, requested_persona: str = None) -> str:
+        if requested_persona:
+            return str(requested_persona).upper()
+        if str(text).lstrip().upper().startswith("EDITH:"):
+            return "EDITH"
+        try:
+            from core.persona import get_persona_manager
+            return get_persona_manager().active_name
+        except Exception:
+            return "SATURDAY"
+
+    @staticmethod
+    def _spoken_text(text: str) -> str:
+        """Keep persona labels for UI/event logs but do not say them aloud."""
+        for label in ("SATURDAY:", "EDITH:"):
+            if str(text).lstrip().upper().startswith(label):
+                return str(text).lstrip()[len(label):].lstrip()
+        return str(text)
+
+    def _speak_edge(self, text: str, persona: str = "SATURDAY"):
         try:
             tmp_path = os.path.join(tempfile.gettempdir(), "saturday_speech.mp3")
+            defaults = (EDITH_VOICE, EDITH_VOICE_RATE, EDITH_VOICE_PITCH) if persona == "EDITH" else (
+                SATURDAY_VOICE, SATURDAY_VOICE_RATE, SATURDAY_VOICE_PITCH
+            )
+            try:
+                from core.persona import get_persona_manager
+                profile = get_persona_manager().persona_for(persona)
+                voice, rate, pitch = profile.voice_name, profile.voice_rate, profile.voice_pitch
+            except Exception:
+                voice, rate, pitch = defaults
             communicate = edge_tts.Communicate(
                 text,
-                SATURDAY_VOICE,
-                rate=SATURDAY_VOICE_RATE,
-                pitch=SATURDAY_VOICE_PITCH,
+                voice,
+                rate=rate,
+                pitch=pitch,
             )
             asyncio.run(communicate.save(tmp_path))
 

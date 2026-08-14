@@ -24,7 +24,14 @@ class BuiltinBrain:
         self.context = []
         self.last_topic = None
 
-    def respond(self, user_input: str) -> str:
+    def respond(self, user_input: str, persona: str = "SATURDAY") -> str:
+        persona = persona.upper()
+        # Prompts from the orchestration layer include a dialogue transcript.  The
+        # final user line is the actual request to answer.
+        if "User:" in user_input:
+            user_input = user_input.rsplit("User:", 1)[-1].split("\n", 1)[0].strip()
+        elif "User input:" in user_input:
+            user_input = user_input.rsplit("User input:", 1)[-1].split("\n", 1)[0].strip()
         text = user_input.strip().lower()
         now = datetime.now()
         hour = now.hour
@@ -33,18 +40,18 @@ class BuiltinBrain:
         if any(g in text for g in greetings):
             if hour < 12:
                 return random.choice([
-                    "Good morning. SATURDAY is online and ready.",
+                    f"Good morning. {persona} is online and ready.",
                     "Morning. What can I do for you?",
                     "Hey there. Systems are running smooth. What's up?",
                 ])
             elif hour < 17:
                 return random.choice([
-                    "Hey. SATURDAY here. What do you need?",
+                    f"Hey. {persona} here. What do you need?",
                     "Good afternoon. All systems nominal. How can I help?",
                 ])
             else:
                 return random.choice([
-                    "Good evening. SATURDAY is at your service.",
+                    f"Good evening. {persona} is at your service.",
                     "Evening. Everything's running. What can I help with?",
                 ])
 
@@ -56,7 +63,8 @@ class BuiltinBrain:
             ])
 
         if any(w in text for w in ["who are you", "what are you", "your name", "tell me about yourself"]):
-            return "I'm SATURDAY, your personal AI operating system. Think of me as your digital assistant - I can help with tasks, answer questions, manage your system, and keep things running smoothly."
+            role = "SATURDAY's specialized subdomain" if persona == "EDITH" else "your primary AI operating system"
+            return f"I'm {persona}, {role}. I can help with tasks, answer questions, manage your system, and keep things running smoothly."
 
         if any(w in text for w in ["what time", "what's the time", "current time", "tell me the time"]):
             return f"It's {now.strftime('%I:%M %p')}."
@@ -254,12 +262,12 @@ class LLMEngine:
             logger.warning(self._init_error)
             return False
 
-    async def _stream_ollama(self, prompt: str):
+    async def _stream_ollama(self, prompt: str, persona: str = "SATURDAY"):
         import aiohttp
 
         payload = {
             "model": self.ollama_model,
-            "prompt": f"{BuiltinBrain.PERSONALITY}\n\nUser: {prompt}\n\nSATURDAY:",
+            "prompt": f"{BuiltinBrain.PERSONALITY}\nActive persona: {persona}\n\nUser: {prompt}\n\n{persona}:",
             "stream": True,
         }
         async with aiohttp.ClientSession() as session:
@@ -277,10 +285,10 @@ class LLMEngine:
                     if token:
                         yield token
 
-    async def chat_stream(self, prompt: str):
+    async def chat_stream(self, prompt: str, persona: str = "SATURDAY"):
         if self.use_ollama:
             try:
-                async for token in self._stream_ollama(prompt):
+                async for token in self._stream_ollama(prompt, persona):
                     yield token
                 return
             except Exception as e:
@@ -288,7 +296,7 @@ class LLMEngine:
                 self.use_ollama = False
 
         if self._use_builtin:
-            response = self._builtin.respond(prompt)
+            response = self._builtin.respond(prompt, persona)
             for word in response.split():
                 yield word + " "
                 await asyncio.sleep(0.02)
@@ -296,7 +304,7 @@ class LLMEngine:
 
         llama = self._get_llama_cpp()
         if not llama:
-            response = self._builtin.respond(prompt)
+            response = self._builtin.respond(prompt, persona)
             for word in response.split():
                 yield word + " "
                 await asyncio.sleep(0.02)
@@ -310,7 +318,7 @@ class LLMEngine:
                     messages=[
                         {
                             "role": "system",
-                            "content": BuiltinBrain.PERSONALITY,
+                            "content": f"{BuiltinBrain.PERSONALITY}\nActive persona: {persona}.",
                         },
                         {"role": "user", "content": prompt},
                     ],
@@ -326,13 +334,13 @@ class LLMEngine:
             return
         except Exception as e:
             logger.error("Llama-cpp execution failure", error=str(e))
-            response = self._builtin.respond(prompt)
+            response = self._builtin.respond(prompt, persona)
             for word in response.split():
                 yield word + " "
                 await asyncio.sleep(0.02)
 
-    async def chat(self, prompt: str) -> str:
+    async def chat(self, prompt: str, persona: str = "SATURDAY") -> str:
         chunks = []
-        async for chunk in self.chat_stream(prompt):
+        async for chunk in self.chat_stream(prompt, persona):
             chunks.append(chunk)
         return "".join(chunks).strip()

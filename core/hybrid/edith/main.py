@@ -26,7 +26,7 @@ class EDITH:
         return self._social
 
     def _on_command(self, command):
-        command = command.lower()
+        command = str(command).lower()
         if "edith" in command:
             self.active = True
             logger.info("EDITH Subdomain Interface active.")
@@ -40,16 +40,17 @@ class EDITH:
             elif "public" in command:
                 if self.brain: self.brain.set_sub_mode("Public")
                 self.event_bus.publish("voice_response", "EDITH Public Mode active. Privacy filters applied.")
-            else:
+            elif command.strip().strip(",.!?") == "edith":
                 if self.brain: self.brain.set_sub_mode("Normal")
-                self.event_bus.publish("voice_response", "EDITH online. How can I assist you?")
+                self.event_bus.publish("voice_response", "EDITH: I'm here. How may I help?")
                 
         elif "saturday" in command:
             self.active = False
             if self.brain:
                 self.brain.set_sub_mode("Normal")                       
                 self.brain.context["interface_mode"] = "SATURDAY"
-            self.event_bus.publish("voice_response", "SATURDAY Core re-engaged. Welcome back, Sir.")
+            if command.strip().strip(",.!?") == "saturday":
+                self.event_bus.publish("voice_response", "SATURDAY: I'm here. What do you need?")
 
     def process_tactical_request(self, command):
         if "status" in command:
