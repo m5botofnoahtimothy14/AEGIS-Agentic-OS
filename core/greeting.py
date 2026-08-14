@@ -19,11 +19,11 @@ class GreetingManager:
     def _on_voice_response(self, text: str):
         if not isinstance(text, str) or not text.strip():
             return
-        logger.debug("Greeting manager observed voice response", text=text[:80])
+        logger.debug("Greeting manager observed voice response: %s", text[:80])
         if hasattr(self.brain, "memory") and isinstance(self.brain.memory, dict):
             history = self.brain.memory.setdefault("history", [])
             history.append({"event": "voice_response", "text": text, "greeted": bool(self.greeted_users)})
-            history = history[-200:]
+            del history[:-200]
     async def greet_user(self, user_id: str):
         if user_id in self.greeted_users:
             return

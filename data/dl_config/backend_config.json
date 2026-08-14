@@ -4,11 +4,11 @@
     "gpu": false
   },
   "pytorch": {
-    "available": true,
+    "available": false,
     "gpu": false
   },
   "onnx": {
-    "available": true,
+    "available": false,
     "gpu": false
   },
   "cuda": false,
@@ -17,5 +17,5 @@
     "name": "",
     "memory_mb": 0
   },
-  "recommended": "pytorch"
+  "recommended": "numpy"
 }

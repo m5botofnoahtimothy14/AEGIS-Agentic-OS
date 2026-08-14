@@ -6,6 +6,7 @@ from typing import Deque, Tuple
 import structlog
 logger = structlog.get_logger("SATURDAY.HumanInterface")
 from core.pipeline import SATURDAYPipeline
+from core.persona import get_persona_manager
 import json
 import os
 class HumanInterface:
@@ -34,6 +35,7 @@ class HumanInterface:
             task_manager=task_manager,
             learning_manager=learning_manager
         )
+        self.personas = get_persona_manager()
         self.event_bus.subscribe("voice_command", self._on_voice_command)
         self.event_bus.subscribe("text_command", self._on_text_command)
         self.event_bus.subscribe("sound_detected", self._on_sound_detected)
@@ -56,7 +58,7 @@ class HumanInterface:
             logger.warning(f"Failed to speak external response: {e}")
     def _on_voice_command(self, data):
         if isinstance(data, dict):
-            command = data.get("command", "")
+            command = data.get("command", data.get("text", ""))
         else:
             command = str(data)
         asyncio.create_task(self._respond(command, source="voice"))
@@ -70,11 +72,18 @@ class HumanInterface:
         user_text = (user_text or "").strip()
         if not user_text:
             return
+        persona = self.personas.route(user_text)
+        # Wake-word-only input is acknowledged by the persona controller.  Do not
+        # generate a second conversational reply for the same activation.
+        if user_text.lower().strip(" ,.!?") in {"saturday", "edith"}:
+            return
         lang_hint = getattr(self, "_pending_lang", None)
         self._pending_lang = None
         if self.use_langgraph:
             logger.info("Executing response via LangGraph pipeline.")
-            result = await self.pipeline.run(user_input=user_text, source=source, lang_hint=lang_hint)
+            result = await self.pipeline.run(
+                user_input=user_text, source=source, lang_hint=lang_hint, persona=persona.name
+            )
             reply = result.get("reply", "")
             if reply:
                 self.memory.append(("user", user_text))
@@ -86,22 +95,24 @@ class HumanInterface:
             self.event_bus.publish("task_request", {"text": user_text, "source": source})
         if any(kw in lower for kw in ["search", "look up", "google", "find info"]):
             self.event_bus.publish("search_request", {"query": user_text.replace("search", "").replace("look up", "").strip() or user_text})
-        prompt = self._build_prompt()
-        reply = await self._run_llm(prompt)
+        prompt = self._build_prompt(persona.name)
+        reply = await self._run_llm(prompt, persona.name)
         self.memory.append(("assistant", reply))
-        self.event_bus.publish("voice_response", reply)
+        self.event_bus.publish("voice_response", f"{persona.name}: {reply}")
         if self.learning:
             self.learning.record("exchange", {"user": user_text, "reply": reply})
-    def _build_prompt(self) -> str:
+    def _build_prompt(self, persona_name: str) -> str:
         context_lines = []
         for role, text in self.memory:
-            prefix = "User:" if role == "user" else "SATURDAY:"
+            prefix = "User:" if role == "user" else f"{persona_name}:"
             context_lines.append(f"{prefix} {text}")
         context = "\n".join(context_lines[-10:])
         long_term = self.learning.get_summaries_text() if self.learning else ""
+        persona = self.personas.persona_for(persona_name)
         return (
-            "You are SATURDAY, a warm, concise, human-like assistant. "
-            "Keep answers short, actionable, and conversational. "
+            f"{persona.system_prompt}\n"
+            "Respond naturally, with brief pauses implied by normal punctuation; never claim "
+            "to be human. Keep answers short, actionable, and conversational. "
             "Context of the recent dialogue:\n"
             f"{context}\n"
             f"Long-term knowledge:\n{long_term}\n"
@@ -131,12 +142,12 @@ class HumanInterface:
             return []
     def set_language_hint(self, lang: str):
         self._pending_lang = lang
-    async def _run_llm(self, prompt: str) -> str:
+    async def _run_llm(self, prompt: str, persona_name: str = "SATURDAY") -> str:
         if not self.llm:
             return "The language model is unavailable right now."
         chunks = []
         try:
-            async for chunk in self.llm.chat_stream(prompt):
+            async for chunk in self.llm.chat_stream(prompt, persona=persona_name):
                 chunks.append(chunk)
         except Exception as e:
             logger.warning("LLM response generation failed", error=str(e))

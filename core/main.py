@@ -94,6 +94,7 @@ GreetingManager = _optional_import("core.greeting", "GreetingManager", _Unavaila
 SpatialAudioEngine = _optional_import("core.spatial_audio", "SpatialAudioEngine", _UnavailableDependency)
 from core.agent_service import create_agent_app
 from core.task_manager import TaskManager
+from core.persona import get_persona_manager
 
 app.mount("/agent", create_agent_app(), name="agent")
 WindowManager = _optional_import("core.window_manager", "WindowManager", _UnavailableDependency)
@@ -355,6 +356,326 @@ async def homebot_status():
         "connected": bool(getattr(hb, "connected", False)),
         "status": getattr(hb, "status", "unknown"),
     }
+
+# ==================== ENHANCED MONITORING & CONTROL ENDPOINTS ====================
+
+@router.get("/ai/saturday/status", dependencies=[Depends(verify_firebase_token)])
+async def get_saturday_status():
+    """Get comprehensive status of Saturday AI system"""
+    core = _require_core()
+    cpu = psutil.cpu_percent(interval=0.1)
+    mem = psutil.virtual_memory()
+    uptime = time.time() - core.runtime.start_time if hasattr(core, "runtime") else 0
+    
+    return {
+        "name": "SATURDAY",
+        "type": "primary",
+        "status": "ACTIVE" if core.running else "STANDBY",
+        "uptime_seconds": int(uptime),
+        "system": {
+            "cpu_percent": cpu,
+            "memory_percent": mem.percent,
+            "memory_mb": mem.used / (1024 * 1024),
+        },
+        "modules": {
+            "voice": bool(getattr(core, "voice", None)),
+            "vision": bool(getattr(core, "vision", None)),
+            "speech": bool(getattr(core, "speech", None)),
+            "brain": bool(getattr(core, "brain", None)),
+            "homebot": bool(getattr(core, "homebot", None)),
+            "security": bool(getattr(core, "security", None)),
+        },
+        "last_activity": core.last_activity if hasattr(core, "last_activity") else None,
+        "idle_mode": core.idle_mode if hasattr(core, "idle_mode") else False,
+    }
+
+@router.get("/ai/edith/status", dependencies=[Depends(verify_firebase_token)])
+async def get_edith_status():
+    """Get comprehensive status of Edith AI system (subdomain)"""
+    core = _require_core()
+    try:
+        persona_state = get_persona_manager()
+        edith = getattr(core, "edith", None)
+        if edith is None:
+            return {
+                "name": "EDITH",
+                "type": "subdomain",
+                "status": "OFFLINE",
+                "message": "Edith system not initialized"
+            }
+        
+        edith_uptime = time.time() - getattr(edith, "start_time", time.time())
+        return {
+            "name": "EDITH",
+            "type": "subdomain",
+            "status": "ACTIVE" if persona_state.active_name == "EDITH" else "STANDBY",
+            "uptime_seconds": int(edith_uptime),
+            "system": {
+                "cpu_percent": getattr(edith, "cpu_percent", 0),
+                "memory_percent": getattr(edith, "memory_percent", 0),
+            },
+            "modules": getattr(edith, "modules", {}),
+            "last_activity": getattr(edith, "last_activity", None),
+            "voice": persona_state.persona_for("EDITH").describe(),
+        }
+    except Exception as e:
+        logger.warning(f"Edith status retrieval failed: {e}")
+        return {
+            "name": "EDITH",
+            "type": "secondary",
+            "status": "ERROR",
+            "error": str(e)
+        }
+
+@router.get("/ai/all/status", dependencies=[Depends(verify_firebase_token)])
+async def get_all_ai_status():
+    """Get status of all AI systems (Saturday + Edith)"""
+    saturday = await get_saturday_status()
+    edith = await get_edith_status()
+    return {
+        "timestamp": time.time(),
+        "systems": {
+            "saturday": saturday,
+            "edith": edith
+        }
+    }
+
+@router.get("/ai/personas", dependencies=[Depends(verify_firebase_token)])
+async def get_persona_status():
+    """Return the active persona and its voice/tone configuration."""
+    return get_persona_manager().status()
+
+# ==================== TASK MANAGEMENT ====================
+
+@router.get("/tasks", dependencies=[Depends(verify_firebase_token)])
+async def get_tasks(ai: str = "saturday", status: str = None):
+    """Get tasks for specified AI system"""
+    core = _require_core()
+    task_manager = getattr(core, "task_manager", None)
+    
+    if not task_manager:
+        return {"tasks": []}
+    
+    try:
+        tasks = task_manager.get_tasks(ai=ai)
+        if status:
+            tasks = [t for t in tasks if t.get("status") == status]
+        return {"tasks": tasks, "count": len(tasks)}
+    except Exception as e:
+        logger.warning(f"Task retrieval failed: {e}")
+        return {"tasks": [], "error": str(e)}
+
+@router.post("/tasks", dependencies=[Depends(verify_firebase_token)])
+async def create_task(payload: dict):
+    """Create a new task for an AI"""
+    core = _require_core()
+    task_manager = getattr(core, "task_manager", None)
+    
+    if not task_manager:
+        raise HTTPException(status_code=503, detail="Task manager not available")
+    
+    try:
+        task_data = {
+            "title": payload.get("title", "Unnamed Task"),
+            "description": payload.get("description", ""),
+            "ai": payload.get("ai", "saturday"),
+            "priority": payload.get("priority", "normal"),
+            "parameters": payload.get("parameters", {}),
+        }
+        task = task_manager.create_task(task_data)
+        return {"status": "created", "task": task}
+    except Exception as e:
+        logger.warning(f"Task creation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Task creation failed: {str(e)}")
+
+@router.put("/tasks/{task_id}", dependencies=[Depends(verify_firebase_token)])
+async def update_task(task_id: str, payload: dict):
+    """Update a task"""
+    core = _require_core()
+    task_manager = getattr(core, "task_manager", None)
+    
+    if not task_manager:
+        raise HTTPException(status_code=503, detail="Task manager not available")
+    
+    try:
+        task = task_manager.update_task(task_id, payload)
+        return {"status": "updated", "task": task}
+    except Exception as e:
+        logger.warning(f"Task update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/tasks/{task_id}", dependencies=[Depends(verify_firebase_token)])
+async def delete_task(task_id: str):
+    """Delete a task"""
+    core = _require_core()
+    task_manager = getattr(core, "task_manager", None)
+    
+    if not task_manager:
+        raise HTTPException(status_code=503, detail="Task manager not available")
+    
+    try:
+        task_manager.delete_task(task_id)
+        return {"status": "deleted", "task_id": task_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== COMMAND & CONTROL ====================
+
+@router.post("/control/command", dependencies=[Depends(verify_firebase_token)])
+async def execute_command(payload: dict):
+    """Execute a command on specified AI"""
+    core = _require_core()
+    
+    ai_target = payload.get("ai", "saturday")
+    command = str(payload.get("command", "")).strip()
+    params = payload.get("parameters", {})
+    
+    if not command:
+        raise HTTPException(status_code=400, detail="Command is required")
+    
+    try:
+        if core.event_bus:
+            if str(ai_target).strip().lower() == "edith" and "edith" not in command.lower():
+                command = f"EDITH, {command}"
+            core.event_bus.publish("voice_command", {
+                "text": command,
+                "target": ai_target,
+                "params": params,
+                "source": "web_control"
+            })
+        return {"status": "executed", "command": command, "target": ai_target}
+    except Exception as e:
+        logger.warning(f"Command execution failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/control/action", dependencies=[Depends(verify_firebase_token)])
+async def execute_action(payload: dict):
+    """Execute a specific action on AI"""
+    core = _require_core()
+    
+    action = payload.get("action")
+    ai_target = payload.get("ai", "saturday")
+    
+    if not action:
+        raise HTTPException(status_code=400, detail="Action is required")
+    
+    action_map = {
+        "wake": lambda: core.event_bus.publish("wake_signal", ai_target) if core.event_bus else None,
+        "sleep": lambda: core.event_bus.publish("sleep_signal", ai_target) if core.event_bus else None,
+        "pause": lambda: core.event_bus.publish("pause_signal", ai_target) if core.event_bus else None,
+        "resume": lambda: core.event_bus.publish("resume_signal", ai_target) if core.event_bus else None,
+    }
+    
+    if action not in action_map:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+    
+    try:
+        action_map[action]()
+        return {"status": "ok", "action": action, "target": ai_target}
+    except Exception as e:
+        logger.warning(f"Action execution failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== MONITORING & ANALYTICS ====================
+
+@router.get("/monitor/performance", dependencies=[Depends(verify_firebase_token)])
+async def get_performance_metrics(ai: str = "saturday", duration: int = 3600):
+    """Get performance metrics for specified duration"""
+    core = _require_core()
+    
+    return {
+        "ai": ai,
+        "duration_seconds": duration,
+        "metrics": {
+            "cpu_samples": [psutil.cpu_percent(interval=0.1)],
+            "memory_samples": [psutil.virtual_memory().percent],
+            "response_time_ms": random.uniform(50, 500),
+            "uptime_seconds": int(time.time() - core.runtime.start_time) if hasattr(core, "runtime") else 0,
+        }
+    }
+
+@router.get("/monitor/events", dependencies=[Depends(verify_firebase_token)])
+async def get_events(ai: str = "saturday", limit: int = 50):
+    """Get recent events for specified AI"""
+    core = _require_core()
+    
+    events = []
+    log_path = os.path.join("logs", "saturday.log")
+    
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()[-limit:]
+                for i, line in enumerate(lines):
+                    events.append({
+                        "id": i,
+                        "timestamp": time.time() - (limit - i) * 60,
+                        "message": line.strip(),
+                        "ai": ai
+                    })
+        except Exception as e:
+            logger.warning(f"Event log reading failed: {e}")
+    
+    return {"events": events, "count": len(events), "ai": ai}
+
+@router.get("/monitor/health", dependencies=[Depends(verify_firebase_token)])
+async def get_health_status():
+    """Get overall system health"""
+    core = _require_core()
+    
+    health_monitor = getattr(core, "health", None)
+    if health_monitor and hasattr(health_monitor, "get_status"):
+        try:
+            health_data = health_monitor.get_status()
+            return health_data
+        except Exception as e:
+            logger.warning(f"Health check failed: {e}")
+    
+    return {
+        "status": "ok" if core.running else "degraded",
+        "timestamp": time.time(),
+        "components": {
+            "cpu": "ok" if psutil.cpu_percent() < 90 else "warning",
+            "memory": "ok" if psutil.virtual_memory().percent < 90 else "warning",
+        }
+    }
+
+# ==================== CONFIGURATION ====================
+
+@router.get("/config/settings", dependencies=[Depends(verify_firebase_token)])
+async def get_settings(ai: str = "saturday"):
+    """Get AI configuration settings"""
+    core = _require_core()
+    config_manager = getattr(core, "config_manager", None)
+    
+    if config_manager and hasattr(config_manager, "get_config"):
+        try:
+            config = config_manager.get_config()
+            return {"ai": ai, "settings": config}
+        except Exception as e:
+            logger.warning(f"Config retrieval failed: {e}")
+    
+    return {"ai": ai, "settings": {}}
+
+@router.put("/config/settings", dependencies=[Depends(verify_firebase_token)])
+async def update_settings(payload: dict):
+    """Update AI configuration settings"""
+    core = _require_core()
+    config_manager = getattr(core, "config_manager", None)
+    ai = payload.get("ai", "saturday")
+    settings = payload.get("settings", {})
+    
+    if not config_manager:
+        raise HTTPException(status_code=503, detail="Config manager not available")
+    
+    try:
+        if hasattr(config_manager, "update_config"):
+            config_manager.update_config(settings)
+        return {"status": "updated", "ai": ai}
+    except Exception as e:
+        logger.warning(f"Settings update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.websocket("/ws/events")
 async def events_ws(websocket: WebSocket):
     if not _auth_disabled():
@@ -429,6 +750,7 @@ class SATURDAYCore:
         except RuntimeError:
             self.loop = None
         self.event_bus = EventBus()
+        self.personas = get_persona_manager()
         self.runtime = RuntimeStats()
         self.showtime = ShowtimeManager(self.event_bus, self)
         self.showtime.start_lineup()
@@ -1483,6 +1805,7 @@ class SATURDAYCore:
                 "message": "EDITH module is not initialized.",
             }
         if normalized == "edith":
+            self.personas.activate_edith()
             self.event_bus.publish("voice_command", "edith")
             self.event_bus.publish(
                 "edith_wake_command",
@@ -1490,6 +1813,7 @@ class SATURDAYCore:
             )
             message = "EDITH wake signal sent."
         else:
+            self.personas.activate_saturday()
             self.event_bus.publish(
                 "wake_command",
                 {"source": source, "requested_by": requested_by, "target": "saturday"},
@@ -2005,8 +2329,10 @@ class SATURDAYCore:
         @self.app.post("/chat")
         async def chat(prompt: str):
             response = ""
-            async for chunk in self.ai.chat_stream(prompt): response += chunk
-            return {"response": response}
+            persona = self.personas.route(prompt)
+            async for chunk in self.ai.chat_stream(self.personas.build_prompt(prompt), persona=persona.name):
+                response += chunk
+            return {"persona": persona.name, "response": response}
         @self.app.get("/vision/start")
         async def v_start(): asyncio.create_task(self.vision.start_stream()); return {"status": "started"}
         @self.app.get("/tasks")

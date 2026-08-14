@@ -21,6 +21,7 @@ class PipelineState(TypedDict):
     lang_hint: Optional[str]
     metadata: Dict
     status: str
+    persona: str
 class SATURDAYPipeline:
     def __init__(self, llm_engine, speech_manager, event_bus, task_manager, learning_manager=None):
         self.llm = llm_engine
@@ -79,7 +80,7 @@ class SATURDAYPipeline:
         )
         plan_chunks = []
         try:
-            async for chunk in self.llm.chat_stream(prompt):
+            async for chunk in self.llm.chat_stream(prompt, persona="SATURDAY"):
                 plan_chunks.append(chunk)
         except Exception as e:
             logger.warning("Planner fallback failed.", error=str(e))
@@ -91,7 +92,7 @@ class SATURDAYPipeline:
             return state
         prompt = self._build_prompt(state)
         chunks = []
-        async for chunk in self.llm.chat_stream(prompt):
+        async for chunk in self.llm.chat_stream(prompt, persona=state.get("persona", "SATURDAY")):
             chunks.append(chunk)
         state["reply"] = "".join(chunks).strip()
         return state
@@ -99,21 +100,27 @@ class SATURDAYPipeline:
         reply = state["reply"]
         if not reply:
             return state
-        self.event_bus.publish("voice_response", reply)
+        self.event_bus.publish("voice_response", f"{state.get('persona', 'SATURDAY')}: {reply}")
         if self.learning:
             self.learning.record("exchange", {"user": state["user_input"], "reply": reply})
         return state
     def _build_prompt(self, state: PipelineState) -> str:
         autogen_info = f"\nStrategist plan: {state['metadata'].get('autogen_plan', '')}" if self.use_autogen else ""
         long_term = self.learning.get_summaries_text() if self.learning else ""
+        persona = state.get("persona", "SATURDAY").upper()
+        try:
+            from core.persona import get_persona_manager
+            system_prompt = get_persona_manager().persona_for(persona).system_prompt
+        except Exception:
+            system_prompt = "You are SATURDAY, a warm, concise AI operating system."
         return (
-            "You are SATURDAY, a warm, concise, human-like AI operating system. "
+            f"{system_prompt} "
             f"{autogen_info}\n\n"
             f"User input: {state['user_input']}\n"
             f"Contextual knowledge: {long_term}\n\n"
             "Response:"
         )
-    async def run(self, user_input: str, source: str = "text", lang_hint: str = None) -> Dict:
+    async def run(self, user_input: str, source: str = "text", lang_hint: str = None, persona: str = "SATURDAY") -> Dict:
         initial_state = {
             "user_input": user_input,
             "source": source,
@@ -121,7 +128,8 @@ class SATURDAYPipeline:
             "tasks": [],
             "lang_hint": lang_hint,
             "metadata": {},
-            "status": "started"
+            "status": "started",
+            "persona": persona.upper(),
         }
         try:
             result = await self.graph.ainvoke(initial_state)
