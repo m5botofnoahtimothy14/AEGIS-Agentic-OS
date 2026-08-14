@@ -418,13 +418,13 @@ async def get_edith_status():
             "last_activity": getattr(edith, "last_activity", None),
             "voice": persona_state.persona_for("EDITH").describe(),
         }
-    except Exception as e:
-        logger.warning(f"Edith status retrieval failed: {e}")
+    except Exception:
+        logger.warning("Edith status retrieval failed", exc_info=True)
         return {
             "name": "EDITH",
             "type": "secondary",
             "status": "ERROR",
-            "error": str(e)
+            "error": "Unable to retrieve Edith status"
         }
 
 @router.get("/ai/all/status", dependencies=[Depends(verify_firebase_token)])
