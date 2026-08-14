@@ -17,7 +17,13 @@ class GreetingManager:
         self.greeted_users = set()
         self.event_bus.subscribe("voice_response", self._on_voice_response)
     def _on_voice_response(self, text: str):
-        pass
+        if not isinstance(text, str) or not text.strip():
+            return
+        logger.debug("Greeting manager observed voice response", text=text[:80])
+        if hasattr(self.brain, "memory") and isinstance(self.brain.memory, dict):
+            history = self.brain.memory.setdefault("history", [])
+            history.append({"event": "voice_response", "text": text, "greeted": bool(self.greeted_users)})
+            history = history[-200:]
     async def greet_user(self, user_id: str):
         if user_id in self.greeted_users:
             return

@@ -297,7 +297,7 @@ class SATURDAYAlwaysOnServer:
                     self.send_response(404)
                     self.end_headers()
             def log_message(self, format, *args):
-                pass
+                logger.debug("Status server request", request=format % args)
         StatusHandler.server = self
         server = HTTPServer(('', self.status_port), StatusHandler)
         logger.info(f"Status server running on port {self.status_port}")

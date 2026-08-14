@@ -13,7 +13,21 @@ class HomeBotBridgeNav:
     def __init__(self):
         self.position = [0, 0]
         self.grid_map = []
-    def move_to(self, target, bot): pass
+    def move_to(self, target, bot):
+        current = list(self.position)
+        target = list(target)
+        self.grid_map.append({"from": current, "to": target})
+        self.position = target
+        if bot and hasattr(bot, "motors"):
+            try:
+                dx = target[0] - current[0]
+                dy = target[1] - current[1]
+                steps = max(1, int(abs(dx) + abs(dy)))
+                bot.motors.move(x=dx, y=dy, duration=steps)
+            except Exception as e:
+                logger.warning("Bridge motor move failed", error=str(e))
+        logger.info("HomeBot bridge navigation updated", target=target, position=self.position)
+        return {"position": self.position, "steps": self.grid_map}
 
 class HomeBot:
     def __init__(self):
@@ -49,12 +63,15 @@ class HomeBot:
             else:
                 logger.error("Cannot execute command: HomeBot not connected.")
         else:
-                                               
-            pass
+            if not hasattr(self, "motors"):
+                logger.error("Cannot execute command: HomeBot motors unavailable.")
+                return
+            direction = command.lower()
+            self.motors.move(direction, duration=duration, speed=speed)
 
     def autonomous_navigation(self, target):
         logger.info(f"Autonomous navigation to {target} requested.")
         if self.os_type == "Windows":
             print(f"[BRIDGE] Requesting autonomous nav to {target}")
         else:
-            pass
+            self.navigation.navigate_to(target)

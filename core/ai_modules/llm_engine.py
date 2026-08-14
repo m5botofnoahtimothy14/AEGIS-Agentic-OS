@@ -5,6 +5,7 @@ import asyncio
 import random
 import time
 from datetime import datetime
+from pathlib import Path
 
 logger = structlog.get_logger("SATURDAY.AI.LLM")
 
@@ -148,8 +149,11 @@ class LLMEngine:
             except Exception as e:
                 logger.error(f"Failed to load config for LLMEngine: {e}")
 
+        def _env_flag(name: str) -> bool:
+            return os.getenv(name, "false").strip().lower() in {"1", "true", "yes", "on"}
+
         ai_config = self.config.get("ai", {})
-        self.use_llama_cpp = ai_config.get("use_llama_cpp", False)
+        self.use_llama_cpp = ai_config.get("use_llama_cpp", False) or _env_flag("SATURDAY_USE_LLAMA_CPP")
         self.model_path = ai_config.get("model_path", "models/llama-3-8b-instruct.Q4_K_M.gguf")
         self.n_ctx = ai_config.get("n_ctx", 2048)
         self.n_gpu_layers = ai_config.get("n_gpu_layers", 0)
@@ -160,13 +164,23 @@ class LLMEngine:
             "on",
         }
 
+        self.use_ollama = ai_config.get("use_ollama", False) or _env_flag("SATURDAY_USE_OLLAMA")
+        self.ollama_url = os.getenv("OLLAMA_URL") or ai_config.get("ollama_url", "http://localhost:11434/api/generate")
+        self.ollama_model = os.getenv("OLLAMA_MODEL") or ai_config.get("ollama_model", "phi3")
+
         self._builtin = BuiltinBrain()
-        self._use_builtin = not self.use_llama_cpp
+        self._use_builtin = not (self.use_llama_cpp or self.use_ollama)
 
         if self.preload:
-            llama = self._get_llama_cpp()
-            if not llama and self.strict_prod:
+            backend_ok = False
+            if self.use_ollama and self._check_ollama():
+                backend_ok = True
+            if not backend_ok and self.use_llama_cpp:
+                backend_ok = bool(self._get_llama_cpp())
+            if not backend_ok and self.strict_prod:
                 raise RuntimeError(self._init_error or "LLM backend is unavailable.")
+            if backend_ok:
+                self._use_builtin = False
 
         if self._use_builtin:
             logger.info("Using built-in conversational brain (no local LLM configured)")
@@ -175,26 +189,44 @@ class LLMEngine:
     def available(self) -> bool:
         return True
 
+    def _resolve_model_path(self) -> str:
+        if os.path.exists(self.model_path):
+            return self.model_path
+        search_dirs = ["models"]
+        extra = os.getenv("SATURDAY_MODELS_DIR", "").strip()
+        if extra:
+            search_dirs.insert(0, extra)
+        for directory in search_dirs:
+            base = Path(directory)
+            if not base.is_dir():
+                continue
+            matches = sorted(base.glob("*.gguf"))
+            if matches:
+                logger.info("Auto-discovered GGUF model", model=str(matches[0]))
+                return str(matches[0])
+        return self.model_path
+
     def _get_llama_cpp(self):
         if self._llama is None:
             try:
                 from llama_cpp import Llama
 
-                if not os.path.exists(self.model_path):
-                    self._init_error = f"Llama model file not found: {self.model_path}"
+                model_path = self._resolve_model_path()
+                if not os.path.exists(model_path):
+                    self._init_error = f"Llama model file not found: {model_path}"
                     logger.warning(self._init_error)
                     self._use_builtin = True
                     return None
 
                 self._llama = Llama(
-                    model_path=self.model_path,
+                    model_path=model_path,
                     n_ctx=self.n_ctx,
                     n_gpu_layers=self.n_gpu_layers,
                     verbose=False,
                 )
                 self._init_error = None
                 self._use_builtin = False
-                logger.info("llama-cpp model loaded successfully", model=self.model_path)
+                logger.info("llama-cpp model loaded successfully", model=model_path)
             except ImportError:
                 self._init_error = "llama-cpp-python is not installed."
                 logger.warning(self._init_error)
@@ -207,7 +239,54 @@ class LLMEngine:
                 self._use_builtin = True
         return self._llama
 
+    def _check_ollama(self) -> bool:
+        try:
+            import requests
+
+            tags_url = self.ollama_url.replace("/api/generate", "/api/tags")
+            response = requests.get(tags_url, timeout=2)
+            if response.status_code != 200:
+                raise RuntimeError(f"Ollama responded {response.status_code}")
+            logger.info("Ollama backend reachable", model=self.ollama_model)
+            return True
+        except Exception as e:
+            self._init_error = f"Ollama backend unavailable: {e}"
+            logger.warning(self._init_error)
+            return False
+
+    async def _stream_ollama(self, prompt: str):
+        import aiohttp
+
+        payload = {
+            "model": self.ollama_model,
+            "prompt": f"{BuiltinBrain.PERSONALITY}\n\nUser: {prompt}\n\nSATURDAY:",
+            "stream": True,
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(self.ollama_url, json=payload, timeout=aiohttp.ClientTimeout(total=120)) as resp:
+                if resp.status != 200:
+                    raise RuntimeError(f"Ollama returned {resp.status}")
+                async for raw in resp.content:
+                    if not raw:
+                        continue
+                    try:
+                        data = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+                    token = data.get("response") or ""
+                    if token:
+                        yield token
+
     async def chat_stream(self, prompt: str):
+        if self.use_ollama:
+            try:
+                async for token in self._stream_ollama(prompt):
+                    yield token
+                return
+            except Exception as e:
+                logger.warning("Ollama backend failed; falling back", error=str(e))
+                self.use_ollama = False
+
         if self._use_builtin:
             response = self._builtin.respond(prompt)
             for word in response.split():

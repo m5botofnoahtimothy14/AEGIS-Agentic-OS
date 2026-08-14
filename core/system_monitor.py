@@ -243,7 +243,8 @@ class SystemMonitor:
                     ip = conn.raddr.ip
                                                    
                     if ip.startswith(('10.', '192.168.', '172.')):
-                        pass                 
+                        # LAN connections are expected and not flagged as threats.
+                        continue                 
                     else:
                                                  
                         if conn.raddr.port not in [80, 443, 22, 21, 25, 53]:

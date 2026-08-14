@@ -4,40 +4,32 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "saturday-ai"
-version = "1.0.0"
-description = "Advanced Engine for Global Integrated Systems"
+version = "1.1.0"
+description = "Offline-capable SATURDAY AI agent and control platform"
+requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "psutil",
     "requests",
-    "opencv-python",
-    "face_recognition",
-    "pyaudio",
-    "SpeechRecognition",
-    "pyttsx3",
-    "flask",
-    "flask-socketio",
     "python-dotenv",
-    "esptool",
-    "pyserial",
-    "scikit-learn",
-    "pandas",
-    "vlc",
-    "schedule",
-    "eventlet",
-    "uvloop",
-    "httptools",
-    "pygetwindow",
-    "pyautogui",
-    "structlog",
     "fastapi",
     "uvicorn",
     "jinja2",
     "paho-mqtt",
     "aiohttp",
-    "pystray",
     "Pillow"
 ]
 
+[project.scripts]
+saturday-agent = "saturday_agent_cli:main"
+saturday-offline = "saturday_agent_cli:main"
+saturday-production = "production_agent:main"
+saturday-download = "saturday_downloader:main"
+saturday-setup = "saturday_downloader:main"
+
 [tool.setuptools]
-packages = ["core", "ai_modules", "identity", "communication", "health", "sensors", "services", "governance", "christianity_core", "ui", "homebot", "embodied", "hybrid"]
+py-modules = ["saturday_agent_cli", "saturday_downloader"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*"]

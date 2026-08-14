@@ -578,11 +578,15 @@ class SATURDAYVoiceDL:
         
         elif self.llm:
             try:
+                chunks = []
                 async for chunk in self.llm.chat_stream(user_input):
-                    pass
-            except:
-                pass
-            response = "Let me process that for you."
+                    chunks.append(chunk)
+                response = "".join(chunks).strip()
+                if not response:
+                    response = "Let me process that for you."
+            except Exception as e:
+                logger.warning("LLM chat stream failed", error=str(e))
+                response = "I hit a problem processing that. Please try again."
         else:
             response = "I understand. Let me help you with that."
         

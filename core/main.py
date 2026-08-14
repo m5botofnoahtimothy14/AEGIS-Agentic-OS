@@ -14,6 +14,7 @@ import random
 import time
 import logging
 import numpy as np
+import importlib
 from pathlib import Path
 from threading import Thread
 from fastapi import FastAPI, Request, WebSocket, APIRouter, HTTPException, Depends
@@ -25,6 +26,23 @@ from firebase_admin import auth as fb_auth
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+logger = logging.getLogger("saturday.main")
+
+class _UnavailableDependency:
+    def __init__(self, *args, **kwargs):
+        raise RuntimeError("Optional SATURDAY dependency unavailable")
+
+
+def _optional_import(module_name: str, attr_name: str | None = None, fallback=None):
+    try:
+        module = importlib.import_module(module_name)
+        if attr_name is None:
+            return module
+        return getattr(module, attr_name)
+    except Exception as exc:
+        logger.warning("Optional import failed for %s.%s: %s", module_name, attr_name or "<module>", exc)
+        return fallback
 
 app = FastAPI(title="SATURDAY AI OS")
 
@@ -45,69 +63,75 @@ templates = Jinja2Templates(directory="core/ui/templates")
 from fastapi.staticfiles import StaticFiles
 app.mount("/static", StaticFiles(directory="core/ui/static"), name="static")
 
-from core.event_bus import EventBus
-from core.runtime import RuntimeStats
-from core.config import ConfigManager
-from core.state import SystemState
-from core.rbac import RBAC
-from health.monitor import HealthMonitor
-from governance.policy import PolicyEngine
-from identity.manager import IdentityManager
-from identity.face_id import FaceID
-from identity.voice_id import VoiceID
-from identity.voice_biometric import VoiceBiometricEngine
-from ui.bridge import WebUI
-from ui.voice_interface import VoiceInterface
-from core.human_interface import HumanInterface
-from core.cloud_bridge import CloudBridge
-from ai_modules.llm_engine import LLMEngine
-from communication.speech import SpeechManager
-from communication.call_agent import CallAgent
-from communication.livekit_webhooks import register_livekit_webhooks
-from embodied.vision import VisionModule
-from christianity_core.spirituality import ChristianityCore
-from core.homebot_integration import HomeBotIntegration
-from hybrid.main import HybridManager
-from hybrid.edith.main import EDITH
-from core.sound_monitor import SoundMonitor
-from core.alert_manager import AlertManager
-from core.brain import LinkedBrain
-from core.greeting import GreetingManager
-from core.spatial_audio import SpatialAudioEngine
+EventBus = _optional_import("core.event_bus", "EventBus")
+RuntimeStats = _optional_import("core.runtime", "RuntimeStats")
+ConfigManager = _optional_import("core.config", "ConfigManager")
+SystemState = _optional_import("core.state", "SystemState")
+RBAC = _optional_import("core.rbac", "RBAC")
+HealthMonitor = _optional_import("health.monitor", "HealthMonitor", _UnavailableDependency)
+PolicyEngine = _optional_import("governance.policy", "PolicyEngine", _UnavailableDependency)
+IdentityManager = _optional_import("identity.manager", "IdentityManager", _UnavailableDependency)
+FaceID = _optional_import("identity.face_id", "FaceID", _UnavailableDependency)
+VoiceID = _optional_import("identity.voice_id", "VoiceID", _UnavailableDependency)
+VoiceBiometricEngine = _optional_import("identity.voice_biometric", "VoiceBiometricEngine", _UnavailableDependency)
+WebUI = _optional_import("ui.bridge", "WebUI", _UnavailableDependency)
+VoiceInterface = _optional_import("ui.voice_interface", "VoiceInterface", _UnavailableDependency)
+HumanInterface = _optional_import("core.human_interface", "HumanInterface", _UnavailableDependency)
+CloudBridge = _optional_import("core.cloud_bridge", "CloudBridge", _UnavailableDependency)
+LLMEngine = _optional_import("ai_modules.llm_engine", "LLMEngine", _UnavailableDependency)
+SpeechManager = _optional_import("communication.speech", "SpeechManager", _UnavailableDependency)
+CallAgent = _optional_import("communication.call_agent", "CallAgent", _UnavailableDependency)
+register_livekit_webhooks = _optional_import("communication.livekit_webhooks", "register_livekit_webhooks")
+VisionModule = _optional_import("embodied.vision", "VisionModule", _UnavailableDependency)
+ChristianityCore = _optional_import("christianity_core.spirituality", "ChristianityCore", _UnavailableDependency)
+HomeBotIntegration = _optional_import("core.homebot_integration", "HomeBotIntegration", _UnavailableDependency)
+HybridManager = _optional_import("hybrid.main", "HybridManager", _UnavailableDependency)
+EDITH = _optional_import("hybrid.edith.main", "EDITH", _UnavailableDependency)
+SoundMonitor = _optional_import("core.sound_monitor", "SoundMonitor", _UnavailableDependency)
+AlertManager = _optional_import("core.alert_manager", "AlertManager", _UnavailableDependency)
+LinkedBrain = _optional_import("core.brain", "LinkedBrain", _UnavailableDependency)
+GreetingManager = _optional_import("core.greeting", "GreetingManager", _UnavailableDependency)
+SpatialAudioEngine = _optional_import("core.spatial_audio", "SpatialAudioEngine", _UnavailableDependency)
+from core.agent_service import create_agent_app
 from core.task_manager import TaskManager
-from core.window_manager import WindowManager
-from core.self_heal import SelfHealManager
-from core.self_healing import SelfHealing
-from core.admin_mood import AdminMood
-from core.self_rewrite import SelfRewriteAdvisor
-from core.voice_dl import SATURDAYVoiceDL
-from deep_learning.core import DeepLearningCore
-from deep_learning.policy import NeuralPolicyEngine
-from deep_learning.adaptive import AdaptiveLearningEngine
-from deep_learning.patterns import PatternRecognition
-from deep_learning.evolution import SelfEvolution
-from ml_integration.core import MLIntegrationCore
-from ml_integration.predictor import PredictiveEngine
-from ml_integration.nlp import NLPEngine
-from conversational_dl.engine import ConversationalDLEngine
-from services.web_search import WebSearchService
-from services.music_manager import MusicManager
-from services.weather_service import WeatherService
-from core.learning_manager import LearningManager
-from core.usb_watchdog import USBWatchdog
-from core.remote_desktop import RemoteDesktopManager
-from ai_modules.security_assistant import SecurityAssistant
-from core.engagement import EngagementManager
-from core.system_tray import SystemTray
-from services.news_service import NewsService
-from communication.screen_navigator import ScreenNavigator
-from communication.social_agent import SocialAgent
-from communication.voice_command_router import VoiceCommandRouter
-from communication.whatsapp_navigator import WhatsAppNavigator
-from communication.insta_navigator import InstaNavigator
-from distributed import InterDeviceSync, DeviceRegistry, RemoteControl, SessionMirror
-from core.secure_gateway_mount import try_mount_secure_gateway
-from orchestrator.showtime_manager import ShowtimeManager
+
+app.mount("/agent", create_agent_app(), name="agent")
+WindowManager = _optional_import("core.window_manager", "WindowManager", _UnavailableDependency)
+SelfHealManager = _optional_import("core.self_heal", "SelfHealManager", _UnavailableDependency)
+SelfHealing = _optional_import("core.self_healing", "SelfHealing", _UnavailableDependency)
+AdminMood = _optional_import("core.admin_mood", "AdminMood", _UnavailableDependency)
+SelfRewriteAdvisor = _optional_import("core.self_rewrite", "SelfRewriteAdvisor", _UnavailableDependency)
+SATURDAYVoiceDL = _optional_import("core.voice_dl", "SATURDAYVoiceDL", _UnavailableDependency)
+DeepLearningCore = _optional_import("deep_learning.core", "DeepLearningCore", _UnavailableDependency)
+NeuralPolicyEngine = _optional_import("deep_learning.policy", "NeuralPolicyEngine", _UnavailableDependency)
+AdaptiveLearningEngine = _optional_import("deep_learning.adaptive", "AdaptiveLearningEngine", _UnavailableDependency)
+PatternRecognition = _optional_import("deep_learning.patterns", "PatternRecognition", _UnavailableDependency)
+SelfEvolution = _optional_import("deep_learning.evolution", "SelfEvolution", _UnavailableDependency)
+MLIntegrationCore = _optional_import("ml_integration.core", "MLIntegrationCore", _UnavailableDependency)
+PredictiveEngine = _optional_import("ml_integration.predictor", "PredictiveEngine", _UnavailableDependency)
+NLPEngine = _optional_import("ml_integration.nlp", "NLPEngine", _UnavailableDependency)
+ConversationalDLEngine = _optional_import("conversational_dl.engine", "ConversationalDLEngine", _UnavailableDependency)
+WebSearchService = _optional_import("services.web_search", "WebSearchService", _UnavailableDependency)
+MusicManager = _optional_import("services.music_manager", "MusicManager", _UnavailableDependency)
+WeatherService = _optional_import("services.weather_service", "WeatherService", _UnavailableDependency)
+LearningManager = _optional_import("core.learning_manager", "LearningManager", _UnavailableDependency)
+USBWatchdog = _optional_import("core.usb_watchdog", "USBWatchdog", _UnavailableDependency)
+RemoteDesktopManager = _optional_import("core.remote_desktop", "RemoteDesktopManager", _UnavailableDependency)
+SecurityAssistant = _optional_import("ai_modules.security_assistant", "SecurityAssistant", _UnavailableDependency)
+EngagementManager = _optional_import("core.engagement", "EngagementManager", _UnavailableDependency)
+SystemTray = _optional_import("core.system_tray", "SystemTray", _UnavailableDependency)
+NewsService = _optional_import("services.news_service", "NewsService", _UnavailableDependency)
+ScreenNavigator = _optional_import("communication.screen_navigator", "ScreenNavigator", _UnavailableDependency)
+SocialAgent = _optional_import("communication.social_agent", "SocialAgent", _UnavailableDependency)
+VoiceCommandRouter = _optional_import("communication.voice_command_router", "VoiceCommandRouter", _UnavailableDependency)
+WhatsAppNavigator = _optional_import("communication.whatsapp_navigator", "WhatsAppNavigator", _UnavailableDependency)
+InstaNavigator = _optional_import("communication.insta_navigator", "InstaNavigator", _UnavailableDependency)
+InterDeviceSync = _optional_import("distributed", "InterDeviceSync", _UnavailableDependency)
+DeviceRegistry = _optional_import("distributed", "DeviceRegistry", _UnavailableDependency)
+RemoteControl = _optional_import("distributed", "RemoteControl", _UnavailableDependency)
+SessionMirror = _optional_import("distributed", "SessionMirror", _UnavailableDependency)
+try_mount_secure_gateway = _optional_import("core.secure_gateway_mount", "try_mount_secure_gateway")
+ShowtimeManager = _optional_import("orchestrator.showtime_manager", "ShowtimeManager", _UnavailableDependency)
 DATA_DIR = PROJECT_ROOT / "data"
 FACE_DB_FILE = DATA_DIR / "faces.json"
 FACE_IMAGE_DIR = DATA_DIR / "faces"
@@ -364,11 +388,27 @@ app.add_middleware(
 app.include_router(router)
 _secure_gateway_mount_status = try_mount_secure_gateway(app, logger)
 _saturday_core = None
+
+class LightweightSATURDAYCore:
+    def __init__(self):
+        self.app = app
+        self.event_bus = EventBus() if EventBus is not None and callable(EventBus) and EventBus is not _UnavailableDependency else None
+        self.runtime = RuntimeStats() if RuntimeStats is not None and callable(RuntimeStats) and RuntimeStats is not _UnavailableDependency else None
+        self.running = True
+
+    async def shutdown(self):
+        self.running = False
+
 @app.on_event("startup")
 async def startup_event():
     global _saturday_core
     if _saturday_core is None:
-        _saturday_core = SATURDAYCore()
+        try:
+            _saturday_core = SATURDAYCore()
+        except Exception as exc:
+            logger.warning("Full SATURDAY core initialization failed; falling back to lightweight mode: %s", exc)
+            _saturday_core = LightweightSATURDAYCore()
+
 @app.on_event("shutdown")
 async def shutdown_event():
     global _saturday_core

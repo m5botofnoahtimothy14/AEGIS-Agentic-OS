@@ -9,7 +9,8 @@ except ImportError:
 
 class NotificationHandler:
     def __init__(self):
-        pass
+        self.available = PLYER_AVAILABLE
+        self._pending = []
 
     def notify(self, title, message, duration=5):
         threading.Thread(target=self._notify_thread, args=(title, message, duration), daemon=True).start()

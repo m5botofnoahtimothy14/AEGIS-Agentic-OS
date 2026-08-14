@@ -285,10 +285,19 @@ class SubsystemRouter:
     async def _handle_conversation(self, cmd: VoiceCommand) -> str:
         if self.llm:
             try:
+                chunks = []
                 async for chunk in self.llm.chat_stream(cmd.raw_text):
-                    pass
-            except:
-                pass
+                    chunks.append(chunk)
+                response = "".join(chunks).strip()
+                if response:
+                    if self.speech and hasattr(self.speech, "speak"):
+                        try:
+                            self.speech.speak(response)
+                        except Exception:
+                            pass
+                    return response
+            except Exception as e:
+                logger.warning("Conversation LLM stream failed", error=str(e))
         return "I'm here. What would you like to know or do?"
 
 class VoiceCommandSystem:

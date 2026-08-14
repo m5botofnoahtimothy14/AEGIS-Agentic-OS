@@ -32,15 +32,40 @@ You can also mount the secure gateway directly into the core app path by setting
 
 🔹 Pre-trained Models & Dependencies
 
-SATURDAY relies on some large models, node packages, and other resources that are **not included in this repo** to keep it lightweight.  
+SATURDAY relies on some large models, node packages, and other resources that are **not included in this repo** to keep it lightweight.
 
-You can download these manually as needed:  
+Download them automatically with the built-in downloader (works on Linux, macOS, Windows and Android/Termux):
 
-- **Core AI Models** → download from your preferred source  
-- **Node Packages / Dependencies** → download from your preferred source  
-- **Datasets / Embeddings** → download from your preferred source  
+```bash
+# One-click setup: install dependencies + download all models
+python saturday_downloader.py setup --models
 
-> ⚠️ Make sure to place downloaded models and packages in the appropriate directories under `core/` or `data/` before running SATURDAY.
+# Download models by category (agentic LLM, voice STT/TTS, vision)
+python saturday_downloader.py download --category agentic
+python saturday_downloader.py download --category voice-stt
+python saturday_downloader.py download --category voice-tts
+python saturday_downloader.py download --category vision
+python saturday_downloader.py download                # all categories
+
+# See what is present / missing (works fully offline)
+python saturday_downloader.py models
+python saturday_downloader.py status
+```
+
+You can also trigger model downloads through the agent CLI:
+
+```bash
+python saturday_agent_cli.py --download agentic
+python saturday_agent_cli.py --setup
+```
+
+Or through the running agent service (`POST /models/download`):
+
+```bash
+curl -X POST http://127.0.0.1:8765/models/download -H "Content-Type: application/json" -d '{"category": ["agentic", "vision"]}'
+```
+
+> ⚠️ Make sure to place downloaded models in `models/` (or set `SATURDAY_MODELS_DIR`) before running SATURDAY. The GGUF LLM model discovered there is used automatically by the offline agent and `LLMEngine`.
 
 ## Repository Hygiene
 

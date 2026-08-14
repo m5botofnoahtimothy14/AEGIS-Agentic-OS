@@ -40,7 +40,14 @@ class AlertManager:
             if count >= 3:
                 self._speak(f"I see {count} people nearby. Do you want me to engage privacy or alert mode?")
     def _on_sound(self, data):
-        pass
+        if not isinstance(data, dict):
+            return
+        level = data.get("db", 0)
+        event_type = data.get("type", "sound")
+        if isinstance(level, (int, float)) and level >= 65:
+            self._speak(f"Detected a {event_type} at {float(level):.0f} decibels. Do you want me to investigate?")
+        else:
+            logger.debug("Sound event below alert threshold", event_type=event_type, level=level)
     def _on_loud(self, data):
         self._speak("Loud impact detected. Should I record or call for help?")
     def _on_siren(self, data):

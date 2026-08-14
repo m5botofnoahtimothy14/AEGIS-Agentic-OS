@@ -42,6 +42,11 @@ prod.env
 
 # Local runtime data
 models/
+config/salt.dat
+config/*.salt
+data/agent_state.json
+data/notes/
+data/ai_knowledge.json
 
 # Backup and throwaway artifacts
 backup/
