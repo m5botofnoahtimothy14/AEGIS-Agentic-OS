@@ -461,9 +461,9 @@ async def get_tasks(ai: str = "saturday", status: str = None):
         if status:
             tasks = [t for t in tasks if t.get("status") == status]
         return {"tasks": tasks, "count": len(tasks)}
-    except Exception as e:
-        logger.warning(f"Task retrieval failed: {e}")
-        return {"tasks": [], "error": str(e)}
+    except Exception:
+        logger.exception("Task retrieval failed")
+        return {"tasks": [], "error": "Task retrieval failed"}
 
 @router.post("/tasks", dependencies=[Depends(verify_firebase_token)])
 async def create_task(payload: dict):
