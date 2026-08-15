@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from .engine import SATURDAYAssistant
+from .offline_llm import OfflineAIEngine
 
-__all__ = ["SATURDAYAssistant"]
+__all__ = ["OfflineAIEngine"]

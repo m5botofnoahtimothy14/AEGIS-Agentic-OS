@@ -5,6 +5,11 @@ import json
 import sys
 from pathlib import Path
 
+# Make the project root importable regardless of the current working directory.
+_PROJECT_ROOT = Path(__file__).resolve().parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 from core.ai_agent import OfflineAIAgent
 
 

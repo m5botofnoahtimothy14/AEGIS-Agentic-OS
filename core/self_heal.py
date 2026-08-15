@@ -66,10 +66,12 @@ class HealingNeuralNetwork:
         output_delta = error
         hidden_error = self.np.dot(output_delta, self.weights2.T)
         hidden_delta = hidden_error * self.relu_derivative(self.hidden)
-        self.weights2 += 0.01 * self.np.dot(self.hidden.T, output_delta)
-        self.weights1 += 0.01 * self.np.dot(features.T, hidden_delta)
+        # Use outer products so the update matrices have the correct shapes
+        # regardless of whether features/hidden are 1-D or 2-D.
+        self.weights2 += 0.01 * self.np.outer(self.hidden, output_delta)
+        self.weights1 += 0.01 * self.np.outer(features, hidden_delta)
         self.bias2 += 0.01 * output_delta
-        self.bias1 += 0.01 * hidden_delta
+        self.bias1 += 0.01 * self.np.ravel(hidden_delta)
 class SelfHealManager:
     def __init__(self, event_bus: EventBus, cpu_thresh: float = 85.0, mem_thresh: float = 85.0):
         self.event_bus = event_bus

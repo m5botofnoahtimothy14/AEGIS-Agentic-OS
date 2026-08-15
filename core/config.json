@@ -79,5 +79,10 @@
         "livekit": false,
         "twilio": false,
         "firebase": false
+    },
+    "test": {
+        "nested": {
+            "value": "hello"
+        }
     }
 }

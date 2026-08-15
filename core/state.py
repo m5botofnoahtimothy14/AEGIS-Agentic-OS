@@ -6,7 +6,7 @@ from core.config import ConfigManager
 
 class SystemState:
     def __init__(self):
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.state_file = "core/state.json"
         self.config = ConfigManager()
                                           
