@@ -81,28 +81,41 @@ if ($LASTEXITCODE -ne 0) {
     }
 }
 
-# Verify core dependencies
-Write-Host "Verifying core dependencies..." -ForegroundColor Yellow
+# Verify and test core dependencies
+Write-Host "Verifying and testing core dependencies..." -ForegroundColor Yellow
 
 $coreModules = @(
     "fastapi",
-    "uvicorn", 
+    "uvicorn",
+    "speech_recognition",
+    "pygame",
+    "tensorflow",
+    "torch",
+    "openai",
+    "pyaudio",
+    "llama_cpp",
+    "sounddevice",
+    "SpeechRecognition",
+    "python_speech_features",
     "numpy",
+    "scipy",
+    "pandas",
     "psutil",
     "requests",
     "python-dotenv"
 )
 
 foreach ($module in $coreModules) {
+    Write-Host "Testing $module..." -ForegroundColor Yellow
     try {
-        & $venvPython -c "import $module; print('$module: OK')"
+        & $venvPython -c "import $module"
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "✓ $module" -ForegroundColor Green
+            Write-Host "$module: OK" -ForegroundColor Green
         } else {
-            Write-Host "✗ $module" -ForegroundColor Red
+            Write-Host "$module: MISSING" -ForegroundColor Red
         }
     } catch {
-        Write-Host "✗ $module" -ForegroundColor Red
+        Write-Host "$module: ERROR - $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
@@ -126,7 +139,9 @@ Start-Sleep -Seconds 5
 if ($appJob.State -eq "Running") {
     Write-Host "SATURDAY AI OS is running successfully!" -ForegroundColor Green
     Write-Host "Access the application at: http://localhost:8000" -ForegroundColor Cyan
-    
+    Write-Host "Application started in the background." -ForegroundColor Green
+    Write-Host "To check status, run: Get-Job -Id $($appJob.Id)" -ForegroundColor Yellow
+
     # Display running jobs
     Get-Job | Where-Object {$_.Id -eq $appJob.Id}
 } else {
@@ -134,5 +149,5 @@ if ($appJob.State -eq "Running") {
     Receive-Job $appJob
 }
 
-Write-Host "`nTo stop the application, run: Stop-Job $appJob.Id; Remove-Job $appJob.Id" -ForegroundColor Yellow
-Write-Host "To check status, run: Get-Job $appJob.Id" -ForegroundColor Yellow
+Write-Host "`nTo stop the application, run: Stop-Job -Id $($appJob.Id); Remove-Job -Id $($appJob.Id)" -ForegroundColor Yellow
+Write-Host "To check status, run: Get-Job -Id $($appJob.Id)" -ForegroundColor Yellow
