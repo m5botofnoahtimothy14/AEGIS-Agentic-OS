@@ -49,6 +49,7 @@ data/notes/
 data/ai_knowledge.json
 data/device_profile.json
 data/wol.json
+data/deep_learning/improvement_nn.json
 run/
 mosquitto.log
 
