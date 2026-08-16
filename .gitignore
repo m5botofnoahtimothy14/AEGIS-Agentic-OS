@@ -1,0 +1,91 @@
+# Ignore junk, NOT code
+nul
+.config/
+.firebase/
+*.cmd
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python tooling cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Environments
+.venv/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+build/
+dist/
+coverage/
+
+# Binaries
+*.exe
+*.bin
+*.zip
+
+# Secrets
+.env
+prod.env
+
+# Local runtime data
+models/
+config/salt.dat
+config/*.salt
+data/agent_state.json
+data/notes/
+data/ai_knowledge.json
+data/device_profile.json
+data/wol.json
+run/
+mosquitto.log
+
+# Backup and throwaway artifacts
+backup/
+backups/
+*.bak
+*.backup
+*.old
+*.orig
+*~
+*.tmp
+*.temp
+tmp/
+temp/
+*.swp
+*.swo
+
+# Python packaging leftovers
+*.whl
+pip-wheel-metadata/
+*.egg-info/
+
+# OS junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Libraries and Large Binaries
+pip_packages/
+.deepface/
+.huggingface/
+.onnx/
+.tensorflow/
+.torch/
+.keras/
+onnxruntime-*.whl
+tensorflow_cpu-*.whl
+transformers-*.whl

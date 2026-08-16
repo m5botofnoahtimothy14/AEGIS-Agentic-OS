@@ -1,0 +1,88 @@
+{
+    "wake_word": "saturday",
+    "edith_wake_word": "edith",
+    "system_name": "SATURDAY",
+    "offline_mode": true,
+    "voices": {
+        "saturday": {
+            "gender": "male",
+            "rate": 155,
+            "volume": 1.0,
+            "pitch": 0,
+            "voice_index": 0
+        },
+        "edith": {
+            "gender": "female",
+            "rate": 165,
+            "volume": 1.0,
+            "pitch": 0,
+            "voice_index": 1
+        }
+    },
+    "cloud": {
+        "endpoint": "",
+        "sync_interval": 0,
+        "enabled": false
+    },
+    "homebot": {
+        "device_ip": "192.168.0.100",
+        "motor_max_speed": 100,
+        "enabled": false
+    },
+    "security": {
+        "cpu_threshold": 85,
+        "mem_threshold": 90
+    },
+    "christianity_core": {
+        "scripture_db_path": "christianity_core/scripture_db.json"
+    },
+    "logging": {
+        "event_log": "logs/events.log",
+        "security_log": "logs/security.log"
+    },
+    "ai": {
+        "use_llama_cpp": false,
+        "use_langgraph": true,
+        "use_autogen": false,
+        "use_livekit": false,
+        "use_ros2": false,
+        "use_sync": false,
+        "model_path": "models/llama-3-8b-instruct.Q4_K_M.gguf",
+        "n_ctx": 2048,
+        "n_gpu_layers": 0
+    },
+    "voice": {
+        "use_deep_learning": true,
+        "whisper_model_size": "tiny",
+        "whisper_language": "en",
+        "whisper_beam_size": 1,
+        "whisper_vad": true,
+        "energy_threshold": 80,
+        "pause_threshold": 0.3,
+        "continuous_listening": true,
+        "no_wake_word": true,
+        "intent_classification": true
+    },
+    "subsystems": {
+        "system_control": true,
+        "vision": false,
+        "home_automation": false,
+        "communication": true,
+        "media": true,
+        "code": true,
+        "security": true,
+        "search": true,
+        "file": true,
+        "calendar": false,
+        "health": true,
+        "cloud_sync": false,
+        "livekit": false,
+        "twilio": false,
+        "firebase": false
+    },
+    "test": {
+        "nested": {
+            "value": "hello"
+        }
+    }
+}

@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SATURDAY — Unified Command Center</title>
+<style>
+:root{
+  --bg:#070b16; --bg2:#0c1322; --panel:#101a30; --panel2:#15203a; --line:#1f2c4d;
+  --text:#e7edff; --muted:#8fa3cc; --accent:#6c5ce7; --accent2:#00d2ff; --good:#2ecc71; --warn:#f1c40f; --bad:#ff4d6d;
+  --mono:"Cascadia Code",Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1200px 600px at 80% -10%, #1a2350 0%, var(--bg) 55%);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+a{color:var(--accent2)}
+header.top{display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);background:rgba(10,16,32,.7);backdrop-filter:blur(8px);position:sticky;top:0;z-index:50}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:1px;font-size:18px}
+.brand .dot{width:12px;height:12px;border-radius:50%;background:var(--accent2);box-shadow:0 0 14px var(--accent2);animation:pulse 2.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.top .spacer{flex:1}
+.chip{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);padding:5px 10px;border-radius:20px;background:var(--panel)}
+.chip b{color:var(--accent2)}
+.layout{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 61px)}
+nav.side{border-right:1px solid var(--line);padding:14px 10px;background:rgba(10,16,32,.5)}
+nav.side button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;margin-bottom:4px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:14px;cursor:pointer}
+nav.side button:hover{background:var(--panel);color:var(--text)}
+nav.side button.active{background:linear-gradient(90deg,rgba(108,92,231,.25),rgba(0,210,255,.12));color:var(--text);border:1px solid var(--line)}
+nav.side .grp{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#5b6f99;padding:12px 12px 6px}
+main{padding:22px;overflow:auto}
+.panel{display:none}
+.panel.active{display:grid;gap:18px}
+.card{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:18px}
+.card h3{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.gauge-row{display:flex;gap:26px;justify-content:space-around;flex-wrap:wrap}
+.gauge{position:relative;width:110px;height:110px;text-align:center}
+.gauge svg{transform:rotate(-90deg)}
+.gauge .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge .val b{font-size:20px}
+.gauge .val span{font-size:10px;color:var(--muted);text-transform:uppercase}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:8px 12px;font-size:13px}
+.kv div:nth-child(odd){color:var(--muted)}
+.kv div:nth-child(even){font-family:var(--mono);font-size:12px;word-break:break-all}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 14px;border-radius:10px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{border-color:var(--accent2);background:#1b2a4a}
+.btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;font-weight:600}
+.btn.danger{background:linear-gradient(90deg,#8b1e3a,#ff4d6d);border:0;color:#fff}
+.btn.warn{background:linear-gradient(90deg,#7a5c00,#f1c40f);border:0;color:#141414}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.small{padding:5px 10px;font-size:12px;border-radius:8px}
+input[type=text],input[type=password],select,textarea{background:var(--bg2);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:10px;font-size:13px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent2)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted);font-size:12px}
+.tgl{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin-bottom:8px}
+.tgl .lbl{font-size:13px}
+.tgl input{display:none}
+.tgl .sw{width:42px;height:22px;border-radius:12px;background:#2a3a63;position:relative;cursor:pointer;transition:.2s}
+.tgl .sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}
+.tgl.on .sw{background:var(--accent2)}
+.tgl.on .sw::after{left:23px}
+.feed{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.feed .item{border-left:3px solid var(--accent);background:var(--bg2);padding:8px 10px;border-radius:6px;font-size:12px;color:var(--muted)}
+.feed .item b{color:var(--text)}
+.log{max-height:420px;overflow:auto;background:#04070f;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--mono);font-size:11px;line-height:1.7;white-space:pre-wrap}
+.log .err{color:var(--bad)}
+.log .warn{color:var(--warn)}
+.results{display:grid;gap:10px}
+.results .r{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px}
+.results .r .t{font-weight:600;margin-bottom:4px}
+.results .r .s{color:var(--muted);font-size:12px}
+.results .r .u{font-size:11px;color:var(--accent2);word-break:break-all}
+.term{display:flex;gap:8px;margin-bottom:10px}
+.termout{background:#04070f;border:1px solid var(--line);border-radius:10px;padding:12px;font-family:var(--mono);font-size:12px;min-height:220px;max-height:420px;overflow:auto;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:1px}
+.badge{padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600}
+.badge.run{background:rgba(46,204,113,.15);color:var(--good)}
+.badge.stopped{background:rgba(255,77,109,.15);color:var(--bad)}
+.badge.done{background:rgba(143,163,204,.15);color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(3,6,15,.8);display:none;align-items:center;justify-content:center;z-index:100}
+.modal.show{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:420px;width:90%}
+.modal h4{margin-bottom:10px}
+.modal p{color:var(--muted);font-size:13px;margin-bottom:16px}
+.cam{background:#000;border:1px solid var(--line);border-radius:14px;min-height:240px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cam img{width:100%;max-height:480px;object-fit:contain}
+#toast{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:8px;z-index:200}
+#toast .t{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent2);padding:10px 14px;border-radius:10px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#toast .t.err{border-left-color:var(--bad)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent2);border-radius:50%;animation:rot .8s linear infinite;vertical-align:middle}
+@keyframes rot{to{transform:rotate(360deg)}}
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{display:flex;overflow-x:auto;padding:8px}nav.side .grp{display:none}nav.side button{width:auto;white-space:nowrap}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="dot"></span>SATURDAY<span style="color:var(--muted);font-weight:400;font-size:12px">UNIFIED COMMAND CENTER</span></div>
+  <div class="spacer"></div>
+  <span class="chip" id="chipCore">core: <b>--</b></span>
+  <span class="chip" id="chipMode">mode: <b>--</b></span>
+  <span class="chip" id="chipUptime">up: <b>--</b></span>
+  <button class="btn small primary" onclick="quickAction('wake')">WAKE SATURDAY</button>
+</header>
+<div class="layout">
+<nav class="side" id="side">
+  <div class="grp">System</div>
+  <button data-panel="overview" class="active">◈ Command Center</button>
+  <button data-panel="brain">◈ Brain &amp; Mind</button>
+  <button data-panel="power">⚡ Power &amp; Remote</button>
+  <button data-panel="search">⌕ Realtime Search</button>
+  <div class="grp">Operations</div>
+  <button data-panel="tasks">⊞ Tasks &amp; Threads</button>
+  <button data-panel="terminal">❯ Terminal</button>
+  <button data-panel="live">◉ Live Feed</button>
+  <button data-panel="logs">≡ Logs</button>
+  <div class="grp">Media &amp; Home</div>
+  <button data-panel="music">♪ Music</button>
+  <button data-panel="homebot">☖ HomeBot</button>
+</nav>
+<main>
+
+<section class="panel active" id="panel-overview">
+  <div class="card">
+    <h3>Live System Status</h3>
+    <div class="gauge-row" id="gauges">
+      <div class="gauge" id="g-cpu"></div>
+      <div class="gauge" id="g-ram"></div>
+      <div class="gauge" id="g-disk"></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <span class="chip">Uptime <b id="ov-uptime">--</b></span>
+      <span class="chip">Tier <b id="ov-tier">--</b></span>
+      <span class="chip">Backend <b id="ov-backend">--</b></span>
+      <span class="chip">Threads <b id="ov-threads">--</b></span>
+      <span class="chip">Power <b id="ov-power">--</b></span>
+      <button class="btn small" onclick="optimizeNow()">⟳ Re-optimize</button>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Systems</h3>
+      <div id="toggles"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" onclick="wakeTarget('saturday')">Wake SATURDAY</button>
+        <button class="btn" onclick="wakeTarget('edith')">Wake EDITH</button>
+        <button class="btn warn" onclick="restartApp()">Restart App</button>
+        <button class="btn danger" onclick="killSwitch()">KILL SWITCH</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>SATURDAY Mind — Activity</h3>
+      <div class="feed" id="activity"><div class="muted">Listening for autonomous activity...</div></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Quick Actions</h3>
+      <div class="row">
+        <button class="btn" onclick="quickAction('status')">Status</button>
+        <button class="btn" onclick="quickAction('scan')">Security Scan</button>
+        <button class="btn" onclick="quickAction('lights')">Lights</button>
+        <button class="btn" onclick="quickAction('lock')">Lock</button>
+        <button class="btn" onclick="quickAction('connect')">Connect</button>
+      </div>
+      <div class="kv" style="margin-top:14px" id="ov-health"></div>
+    </div>
+    <div class="card">
+      <h3>Startup Lineup</h3>
+      <div class="kv" id="ov-lineup"><div class="muted" style="grid-column:1/-1">Loading lineup...</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="panel-brain">
+  <div class="grid-2">
+    <div class="card">
+      <h3>Linked Brain</h3>
+      <div class="kv" id="brain-kv"><div class="muted">Loading brain state...</div></div>
+      <div class="row" style="margin-top:12px">
+        <input type="text" id="brain-goal" placeholder="Give SATURDAY a goal / question...">
+        <button class="btn primary" onclick="think()">Make SATURDAY Think</button>
+      </div>
+      <div id="brain-out" class="log" style="margin-top:10px;display:none"></div>
+    </div>
+    <div class="card">
+      <h3>Neural Subsystems</h3>
+      <table>
+        <thead><tr><th>Subsystem</th><th>State</th></tr></thead>
+        <tbody id="neural-table"></tbody>
+      </table>
+      <div class="muted" style="margin-top:8px" id="neural-note"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Deep Learning &amp; Prediction</h3>
+    <div class="row">
+      <button class="btn small" onclick="loadDL()">Reload</button>
+    </div>
+    <div id="dl-out" class="kv" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<section class="panel" id="panel-power">
+  <div class="grid-2">
+    <div class="card">
+      <h3>Remote Wake (Wake-on-LAN)</h3>
+      <div class="kv" id="power-wol"></div>
+      <div class="row" style="margin-top:12px">
+        <input type="text" id="wol-mac" placeholder="MAC e.g. AA:BB:CC:DD:EE:FF">
+        <input type="text" id="wol-ip" placeholder="IP (optional)">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" onclick="saveWol()">Save WoL Config</button>
+        <button class="btn primary" onclick="sendWake()">⟶ Send Wake Packet</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Requires WoL enabled in BIOS + network adapter. Boots the physical machine from off/sleep.</div>
+    </div>
+    <div class="card">
+      <h3>Physical Machine Power</h3>
+      <div class="kv" id="power-os"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn warn" onclick="osAction('shutdown')">⏻ Shut Down OS</button>
+        <button class="btn warn" onclick="osAction('restart')">↻ Restart OS</button>
+        <button class="btn" onclick="osAction('sleep')">☾ Sleep OS</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Shuts down / restarts / suspends the actual computer running SATURDAY.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Application Control</h3>
+    <div class="row">
+      <button class="btn primary" onclick="wakeTarget('saturday')">Wake SATURDAY App</button>
+      <button class="btn" onclick="wakeTarget('edith')">Wake EDITH App</button>
+      <button class="btn warn" onclick="restartApp()">Restart SATURDAY App</button>
+      <button class="btn danger" onclick="killSwitch()">Emergency Kill</button>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="panel-search">
+  <div class="card">
+    <h3>Realtime Web Search</h3>
+    <div class="row">
+      <input type="text" id="search-q" placeholder="Ask SATURDAY to search the live web..." onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="btn primary" onclick="doSearch()">⌕ Search Live</button>
+    </div>
+    <div class="muted" style="margin-top:6px">Results stream back in realtime over the SATURDAY WebSocket.</div>
+    <div id="search-results" class="results" style="margin-top:12px"></div>
+  </div>
+  <div class="card">
+    <h3>Recent Searches</h3>
+    <div class="log" id="search-recent">No searches yet.</div>
+  </div>
+</section>
+
+<section class="panel" id="panel-tasks">
+  <div class="card">
+    <h3>Processor Threads</h3>
+    <table>
+      <thead><tr><th>Name</th><th>Kind</th><th>State</th><th>Uptime</th><th></th></tr></thead>
+      <tbody id="thread-table"></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Background Tasks</h3>
+    <table>
+      <thead><tr><th>Name</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+      <tbody id="task-table"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel" id="panel-terminal">
+  <div class="card">
+    <h3>SATURDAY Terminal</h3>
+    <div class="term">
+      <input type="text" id="term-in" placeholder="type 'help'..." onkeydown="if(event.key==='Enter')runTerm()">
+      <button class="btn primary" onclick="runTerm()">Run</button>
+    </div>
+    <div class="termout" id="term-out">SATURDAY terminal ready. Type 'help' for commands.</div>
+  </div>
+</section>
+
+<section class="panel" id="panel-live">
+  <div class="card">
+    <h3>Live Camera Feed</h3>
+    <div class="cam"><img id="cam-img" style="display:none" alt="SATURDAY VISION"><span id="cam-ph" class="muted">Camera off</span></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" onclick="camStart()">▶ Start Camera</button>
+      <button class="btn danger" onclick="camStop()">■ Stop Camera</button>
+      <button class="btn" onclick="visionToggle()">Toggle Vision System</button>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="panel-logs">
+  <div class="card">
+    <h3>System Logs <span class="muted" id="log-fresh"></span></h3>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn small" onclick="loadLogs()">Refresh</button>
+      <select id="log-lines" onchange="loadLogs()"><option>50</option><option selected>150</option><option>300</option></select>
+    </div>
+    <div class="log" id="log-out">Loading logs...</div>
+  </div>
+</section>
+
+<section class="panel" id="panel-music">
+  <div class="card">
+    <h3>Mood Music</h3>
+    <div class="row" id="music-btns"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn danger" onclick="musicStop()">■ Stop</button>
+      <span class="muted" id="music-status">Stopped</span>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="panel-homebot">
+  <div class="card">
+    <h3>HomeBot</h3>
+    <div class="kv" id="homebot-status"><div class="muted">Loading HomeBot status...</div></div>
+    <div class="row" style="margin-top:12px">
+      <input type="text" id="hb-cmd" placeholder="e.g. forward, left, right, stop, status">
+      <button class="btn primary" onclick="hbCommand()">Send Command</button>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h4 id="modal-title">Confirm</h4>
+    <p id="modal-text"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" onclick="modalHide()">Cancel</button>
+      <button class="btn danger" id="modal-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let ws=null, camOn=false, activity=[];
+const state={systems:{security:true,vision:true,voice:true,faceid:true},profile:{}};
+
+function api(path,method='GET',body){const o={method,headers:{}};if(body!==undefined){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}return fetch(path,o).then(r=>r.json().catch(()=>({})))}
+function toast(msg,err=false){const t=document.createElement('div');t.className='t'+(err?' err':'');t.textContent=msg;$('toast').appendChild(t);setTimeout(()=>t.remove(),4200)}
+
+function connect(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen=()=>{ws.send(JSON.stringify({type:'register_ui'}));toast('SATURDAY realtime link connected')};
+  ws.onclose=()=>{toast('Realtime link dropped - reconnecting...',true);setTimeout(connect,3000)};
+  ws.onmessage=e=>{try{const m=JSON.parse(e.data);handleWS(m)}catch(_){}};
+}
+
+function gauge(id,val,label,color){
+  const c=`<div class="gauge" id="g-${id}"><svg width="110" height="110"><circle cx="55" cy="55" r="46" fill="none" stroke="#1f2c4d" stroke-width="10"/><circle cx="55" cy="55" r="46" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(2*Math.PI*46*val/100).toFixed(1)} ${2*Math.PI*46}" stroke-dashoffset="0"/></svg><div class="val"><b>${Math.round(val)}%</b><span>${label}</span></div></div>`;
+  return c;
+}
+function setGauge(id,val,label,color){const el=$(id);if(!el)return;el.innerHTML=`<svg width="110" height="110"><circle cx="55" cy="55" r="46" fill="none" stroke="#1f2c4d" stroke-width="10"/><circle cx="55" cy="55" r="46" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(2*Math.PI*46*val/100).toFixed(1)} ${2*Math.PI*46}"/></svg><div class="val"><b>${Math.round(val)}%</b><span>${label}</span></div>`}
+function gaugeColor(v){return v>85?'#ff4d6d':v>65?'#f1c40f':'#2ecc71'}
+
+function fmtUptime(s){s=Math.max(0,s|0);const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60),sec=s%60;return (d?d+'d ':'')+(h?h+'h ':'')+(m?m+'m ':'')+sec+'s'}
+
+function handleWS(m){
+  switch(m.type){
+    case 'system_status':
+      setGauge('g-cpu',m.cpu_percent||0,'CPU',gaugeColor(m.cpu_percent||0));
+      setGauge('g-ram',m.memory_percent||0,'RAM',gaugeColor(m.memory_percent||0));
+      setGauge('g-disk',m.disk_percent||0,'Disk',gaugeColor(m.disk_percent||0));
+      $('chipUptime').innerHTML='up: <b>'+fmtUptime(m.uptime_seconds||0)+'</b>';
+      break;
+    case 'health_update':
+      $('chipCore').innerHTML='core: <b>'+((m.memory_percent||0)+'% · '+(m.cpu_percent||0)+'%')+'</b>';
+      $('ov-power').textContent=m.power_status||'--';
+      $('ov-health').innerHTML='<div>Memory</div><div>'+m.memory_available+'</div><div>System</div><div>'+m.system_status+'</div><div>Power</div><div>'+(m.power_status||'--')+'</div>';
+      break;
+    case 'processor_activity':
+      prependActivity(m.message||'processor event');
+      break;
+    case 'search_results':
+      renderSearch(m.results||[], m.query||'');
+      break;
+    case 'camera_frame':
+      camOn=true;$('cam-img').style.display='block';$('cam-ph').style.display='none';
+      $('cam-img').src='data:image/jpeg;base64,'+m.frame;
+      break;
+    case 'wake_state':
+      toast((m.message||'wake')+(m.success?' ✓':' ✗'),!m.success);
+      break;
+    case 'voice_msg':
+      toast(m.text);
+      break;
+    case 'security_alert':
+      toast('⚠ '+JSON.stringify(m.data||{}),true);
+      break;
+    case 'system_alert':
+      toast(m.message,true);
+      break;
+    case 'homebot_telemetry':
+      loadHomebot();
+      break;
+  }
+}
+
+function prependActivity(msg){
+  activity.unshift({m:msg,t:Date.now()});activity=activity.slice(0,40);
+  $('activity').innerHTML=activity.map(a=>`<div class="item"><b>${new Date(a.t).toLocaleTimeString()}</b> ${esc(a.m)}</div>`).join('')||'<div class="muted">Waiting...</div>';
+}
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function loadOverview(){
+  try{
+    const p=await api('/api/processor');
+    if(p.profile){
+      state.profile=p.profile;
+      $('ov-tier').textContent=p.profile.tier;
+      $('ov-backend').textContent=p.profile.backend;
+      $('ov-threads').textContent=p.profile.thread_pool_workers+' workers';
+      $('chipMode').innerHTML='mode: <b>'+p.mode+'</b>';
+      prependActivity('Device profile loaded: '+p.profile.tier+' tier / '+p.profile.backend);
+    }
+  }catch(_){}
+  try{
+    const s=await api('/api/status');
+    setGauge('g-cpu',s.cpu_percent||0,'CPU',gaugeColor(s.cpu_percent||0));
+    setGauge('g-ram',s.memory_percent||0,'RAM',gaugeColor(s.memory_percent||0));
+    setGauge('g-disk',s.disk_percent||0,'Disk',gaugeColor(s.disk_percent||0));
+    $('chipUptime').innerHTML='up: <b>'+fmtUptime(s.uptime_sec||0)+'</b>';
+  }catch(_){}
+  try{const h=await api('/api/health');$('ov-health').innerHTML='<div>Memory</div><div>'+h.memory_available+'</div><div>System</div><div>'+h.system_status+'</div><div>Power</div><div>'+(h.power_status||'--')+'</div>';$('ov-power').textContent=h.power_status||'--';}catch(_){}
+  try{const l=await api('/api/system/lineup');if(l&&l.stages){$('ov-lineup').innerHTML=Object.entries(l.stages).map(([k,v])=>`<div>${k}</div><div>${v||'--'}</div>`).join('')}}catch(_){}
+}
+
+function renderToggles(){
+  const sys=['security','vision','voice','faceid'];
+  $('toggles').innerHTML=sys.map(s=>`
+    <div class="tgl ${state.systems[s]?'on':''}" id="tgl-${s}">
+      <span class="lbl">${s.toUpperCase()}</span>
+      <input type="checkbox" id="cb-${s}" ${state.systems[s]?'checked':''} onchange="toggleSystem('${s}')"><label class="sw" for="cb-${s}"></label>
+    </div>`).join('');
+}
+async function toggleSystem(s){
+  const r=await api('/api/control/toggle/'+s,'POST',{});
+  if(r&&r.enabled!==undefined){state.systems[s]=r.enabled;const el=$('tgl-'+s);if(el)el.className='tgl '+(r.enabled?'on':'');toast(s+' '+(r.enabled?'enabled':'disabled'))}
+}
+async function wakeTarget(t){const r=await api('/api/control/wake','POST',{target:t,source:'unified_web'});toast(r.message||r.error,r.success===false);if(r.success){$('chipCore').innerHTML='core: <b>WAKE</b>';prependActivity(t.toUpperCase()+' woken')}}
+function quickAction(a){api('/api/control/quick-action','POST',{action:a}).then(r=>toast('Executing: '+a));prependActivity('Quick action dispatched: '+a)}
+async function restartApp(){confirmBox('Restart SATURDAY app?','The SATURDAY service will restart.','danger',()=>{api('/api/control/restart','POST',{}).then(()=>toast('SATURDAY restarting...'))})}
+async function killSwitch(){confirmBox('KILL SWITCH','This stops the entire SATURDAY system. Confirm?','danger',()=>{api('/api/control/kill','POST',{}).then(()=>toast('KILL SWITCH ACTIVATED',true))})}
+async function optimizeNow(){const b=document.createElement('span');b.className='spin';toast('Optimizing for this device...');const r=await api('/api/processor/optimize','POST',{});if(r.profile){toast('Optimized: '+r.profile.tier+' tier');loadOverview()}}
+
+async function loadBrain(){
+  try{
+    const b=await api('/api/brain/status');
+    const persona=b.persona||{};
+    $('brain-kv').innerHTML=
+      '<div>Linked Brain</div><div>'+(b.connected?'<span class="badge run">CONNECTED</span>':'<span class="badge stopped">OFFLINE</span>')+'</div>'+
+      '<div>Active Persona</div><div>'+(persona.current_persona||persona.current_user_type||'--')+'</div>'+
+      '<div>User</div><div>'+(persona.user_name||'--')+'</div>'+
+      '<div>Interface</div><div>'+(persona.interface_mode||'--')+'</div>'+
+      '<div>Sub-mode</div><div>'+(persona.sub_mode||'--')+'</div>'+
+      '<div>Mode</div><div>'+(b.processor&&b.processor.mode||'--')+'</div>';
+    $('neural-table').innerHTML=[
+      ['Deep Learning','/api/dl/status'],['ML Core','/api/ml/status'],['NLP','/api/nlp/status'],['Predictor','/api/predict/status']
+    ].map(([n,p])=>'<tr><td>'+n+'</td><td id="neu-'+n.replace(/\W/g,'')+'"><span class="spin"></span></td></tr>').join('');
+    [['Deep Learning','/api/dl/status'],['ML Core','/api/ml/status'],['NLP','/api/nlp/status'],['Predictor','/api/predict/status']]
+      .forEach(async ([n,p])=>{
+        const el=$('neu-'+n.replace(/\W/g,''));if(!el)return;
+        try{const r=await api(p);el.innerHTML='<span class="badge run">ACTIVE</span>';if(r&&n==='Deep Learning'){$('dl-out').innerHTML=kv(r)}else if(r&&n==='Predictor'){$('dl-out').innerHTML+=kv(r)}}catch(_){el.innerHTML='<span class="badge stopped">OFFLINE</span>'}
+      });
+  }catch(_){}
+}
+const kv=o=>o&&Object.keys(o).length?Object.entries(o).slice(0,14).map(([k,v])=>`<div>${esc(k)}</div><div>${esc(typeof v==='object'?JSON.stringify(v):v)}</div>`).join(''):'<div class="muted" style="grid-column:1/-1">No data</div>';
+async function think(){
+  const goal=$('brain-goal').value;if(!goal){toast('Enter a goal for SATURDAY',true);return}
+  const out=$('brain-out');out.style.display='block';out.innerHTML='<span class="spin"></span> SATURDAY is thinking...';
+  const r=await api('/api/brain/think','POST',{goal});
+  out.innerHTML='<b>Goal:</b> '+esc(goal)+'\n\n'+esc(typeof r.response==='string'?r.response:JSON.stringify(r,null,2));
+}
+
+async function loadPower(){
+  try{
+    const p=await api('/api/power');
+    $('power-wol').innerHTML=
+      '<div>Armed</div><div>'+(p.armed?'<span class="badge run">YES</span>':'<span class="badge stopped">NO</span>')+'</div>'+
+      '<div>Detected MAC</div><div class="mono">'+(p.wol_mac||'--')+'</div>'+
+      '<div>WoL IP</div><div class="mono">'+(p.wol_ip||'(broadcast)')+'</div>'+
+      '<div>WoL Ready</div><div>'+(p.wol_ready?'<span class="badge run">READY</span>':'<span class="badge stopped">NO MAC</span>')+'</div>';
+    $('wol-mac').value=p.wol_mac||'';
+    $('wol-ip').value=p.wol_ip||'';
+    $('power-os').innerHTML=
+      '<div>OS</div><div class="mono">'+p.os+'</div>'+
+      '<div>Shutdown</div><div>'+(p.os_shutdown_supported?'<span class="badge run">supported</span>':'<span class="badge stopped">no</span>')+'</div>'+
+      '<div>Restart</div><div>'+(p.os_restart_supported?'<span class="badge run">supported</span>':'<span class="badge stopped">no</span>')+'</div>'+
+      '<div>Sleep</div><div>'+(p.os_sleep_supported?'<span class="badge run">supported</span>':'<span class="badge stopped">no</span>')+'</div>';
+  }catch(_){}
+}
+async function saveWol(){const r=await api('/api/power/wol','POST',{mac:$('wol-mac').value.trim(),ip:$('wol-ip').value.trim()});toast(r.error||'WoL config saved',!!r.error);loadPower()}
+async function sendWake(){const mac=$('wol-mac').value.trim();const r=await api('/api/power/wake','POST',{mac,ip:$('wol-ip').value.trim()});toast(r.message||r.error,!!r.error);if(r.success)prependActivity('WoL packet sent to '+r.mac)}
+function osAction(a){
+  const labels={shutdown:'SHUT DOWN THE OS?',restart:'RESTART THE OS?',sleep:'SLEEP THE OS?'};
+  const text={shutdown:'This will power off the entire machine running SATURDAY.',restart:'This will reboot the entire machine.',sleep:'This will suspend the entire machine.'}[a];
+  confirmBox(labels[a],text,'danger',async()=>{
+    const r=await api('/api/power/'+a,'POST',{confirm:true,delay:5});
+    toast(r.error||r.action+' command issued ('+(r.command||'')+')',!!r.error);
+  });
+}
+
+async function doSearch(){
+  const q=$('search-q').value.trim();if(!q){toast('Enter a search query',true);return}
+  $('search-results').innerHTML='<div class="muted"><span class="spin"></span> Searching the live web for "'+esc(q)+'"...</div>';
+  prependActivity('Realtime search: '+q);
+  const r=await api('/api/search','POST',{query:q,max_results:6});
+  if(r.error){$('search-results').innerHTML='<div class="muted">'+esc(r.error)+'</div>'}
+  loadRecent();
+}
+function renderSearch(results,q){
+  if(!results||!results.length){$('search-results').innerHTML='<div class="muted">No results for "'+esc(q)+'".</div>';return}
+  $('search-results').innerHTML='<div class="muted" style="margin-bottom:6px">Results for <b>'+esc(q)+'</b></div>'+
+    results.map(r=>`<div class="r"><div class="t">${esc(r.title)}</div><div class="s">${esc(r.snippet)}</div><div class="u">${esc(r.url)}</div></div>`).join('');
+}
+async function loadRecent(){
+  const r=await api('/api/search/recent');
+  $('search-recent').textContent=r&&r.length?r.map(x=>x.query+' — '+(x.results?x.results.length:0)+' results').join('\n'):'No searches yet.';
+}
+
+async function loadThreads(){
+  try{
+    const r=await api('/api/threads');
+    $('thread-table').innerHTML=(r.tasks||[]).length?r.tasks.map(t=>
+      `<tr><td class="mono">${esc(t.name)}</td><td>${t.kind}</td><td><span class="badge ${t.state}">${t.state}</span></td><td>${fmtUptime(t.uptime_sec)}</td><td><button class="btn small" onclick="cancelThread('${esc(t.name)}')">cancel</button></td></tr>`).join('')
+      :'<tr><td colspan="5" class="muted">No tracked tasks</td></tr>';
+  }catch(_){}
+  try{
+    const t=await api('/tasks');
+    $('task-table').innerHTML=(t&&t.length)?t.map(x=>
+      `<tr><td class="mono">${esc(x.name)}</td><td>${x.priority}</td><td><span class="badge ${x.status}">${x.status}</span></td><td><button class="btn small" onclick="cancelTask('${esc(x.name)}')">cancel</button></td></tr>`).join('')
+      :'<tr><td colspan="4" class="muted">No background tasks</td></tr>';
+  }catch(_){}
+}
+async function cancelThread(n){const r=await api('/api/threads/cancel','POST',{name:n});toast(r.success?'Cancelled '+n:'Cancel failed',!r.success);loadThreads()}
+async function cancelTask(n){const r=await api('/api/terminal/execute','POST',{command:''});loadThreads()}
+
+async function runTerm(){
+  const cmd=$('term-in').value.trim();if(!cmd)return;
+  $('term-out').textContent+='\n$ '+cmd;
+  const r=await api('/api/terminal/execute','POST',{command:cmd});
+  $('term-out').textContent+='\n'+(r.output||r.error||'');
+  $('term-out').scrollTop=$('term-out').scrollHeight;
+  $('term-in').value='';
+}
+
+async function camStart(){camOn=true;await api('/api/camera/start','POST',{});toast('Camera streaming to linked clients')}
+async function camStop(){camOn=false;await api('/api/camera/stop','POST',{});$('cam-img').style.display='none';$('cam-ph').style.display='block';$('cam-ph').textContent='Camera off';toast('Camera stopped')}
+async function visionToggle(){const r=await api('/api/control/toggle/vision','POST',{});toast('Vision '+(r.enabled?'enabled':'disabled'))}
+
+async function loadLogs(){
+  const n=$('log-lines').value;
+  const r=await api('/api/logs?lines='+n);
+  if(!Array.isArray(r)){$('log-out').textContent='Error loading logs';return}
+  $('log-out').innerHTML=r.map(l=>{
+    let c='';
+    if(/ERROR|Traceback/.test(l))c='err';else if(/WARN|failed/i.test(l))c='warn';
+    return `<div class="${c}">${esc(l)}</div>`;
+  }).join('');
+  $('log-fresh').textContent='— '+new Date().toLocaleTimeString();
+}
+
+async function loadMusic(){
+  try{
+    const r=await api('/api/music/playlists');
+    const moods=r.playlists?Object.keys(r.playlists):['happy','focus','chill','workout','sleep','sad'];
+    $('music-btns').innerHTML=moods.map(m=>`<button class="btn" onclick="musicPlay('${m}')">♪ ${m}</button>`).join('');
+  }catch(_){$('music-btns').innerHTML='<span class="muted">Music manager unavailable</span>'}
+}
+async function musicPlay(m){const r=await api('/api/music/play','POST',{mood:m});toast(r.error||'Playing '+m+' playlist',!!r.error);$('music-status').textContent='Playing '+m}
+async function musicStop(){const r=await api('/api/music/stop','POST',{});toast('Music stopped');$('music-status').textContent='Stopped'}
+
+async function loadHomebot(){
+  try{
+    const r=await api('/homebot/status');
+    $('homebot-status').innerHTML=r.error?'<div class="muted" style="grid-column:1/-1">'+esc(r.error)+'</div>':kv(r);
+  }catch(_){}
+}
+async function hbCommand(){
+  const c=$('hb-cmd').value.trim();if(!c){toast('Enter a HomeBot command',true);return}
+  const r=await api('/api/homebot/command','POST',{command:c});
+  toast(r.error||(r.success?'HomeBot: '+c+' ✓':'HomeBot command sent'),!!r.error);
+}
+
+let modalCb=null;
+function confirmBox(title,text,style,cb){$('modal-title').textContent=title;$('modal-text').textContent=text;const ok=$('modal-ok');ok.className='btn '+(style||'danger');modalCb=cb;$('modal').classList.add('show')}
+function modalHide(){$('modal').classList.remove('show');modalCb=null}
+$('modal-ok').addEventListener('click',()=>{const cb=modalCb;modalHide();if(cb)cb()});
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))modalHide()});
+
+document.querySelectorAll('#side button[data-panel]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#side button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    b.classList.add('active');$('panel-'+b.dataset.panel).classList.add('active');
+    const loaders={brain:loadBrain,power:loadPower,tasks:loadThreads,logs:loadLogs,music:loadMusic,homebot:loadHomebot,overview:loadOverview};
+    (loaders[b.dataset.panel]||(()=>{}))();
+  });
+});
+
+setInterval(()=>{loadThreads()},8000);
+setInterval(()=>{loadLogs()},15000);
+
+loadOverview();renderToggles();loadPower();loadBrain();loadThreads();loadLogs();loadMusic();loadHomebot();loadRecent();connect();
+</script>
+</body>
+</html>

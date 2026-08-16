@@ -1,0 +1,178 @@
+import logging
+import cv2
+import asyncio
+import numpy as np
+import threading
+import time
+from typing import Optional
+
+try:
+    from core.health.rppg_engine import RPPGEngine
+except ImportError:
+    RPPGEngine = None
+
+try:
+    import mss
+except ImportError:
+    mss = None
+
+try:
+    from core.deep_learning import setup_for_deepface, get_backend_manager
+except ImportError:
+    setup_for_deepface = None
+    get_backend_manager = None
+
+logger = logging.getLogger("SATURDAY.Vision")
+
+
+class EmotionDetector:
+    def __init__(self):
+        self.DeepFace = None
+        self.backend = None
+
+        if get_backend_manager is None:
+            logger.warning("Deep learning backend not available. Emotion detection will use mock.")
+            return
+
+        try:
+            backend_mgr = get_backend_manager()
+            tf_available = backend_mgr._status.tensorflow if hasattr(backend_mgr, '_status') else False
+        except Exception:
+            tf_available = False
+
+        if tf_available:
+            try:
+                if setup_for_deepface and setup_for_deepface():
+                    from deepface import DeepFace
+                    self.DeepFace = DeepFace
+                    self.backend = "tensorflow"
+
+                    dummy_face = np.zeros((224, 224, 3), dtype=np.uint8)
+                    try:
+                        self.DeepFace.analyze(dummy_face, actions=['emotion'], enforce_detection=False)
+                        logger.info("DeepFace initialized with TensorFlow backend")
+                    except Exception as e:
+                        logger.warning(f"DeepFace warmup failed: {e}")
+                else:
+                    raise ImportError("DeepFace setup failed")
+            except ImportError:
+                self.DeepFace = None
+                self.backend = None
+                logger.warning("DeepFace not available. Emotion detection will fallback to mock.")
+        else:
+            logger.warning("TensorFlow not detected. Emotion detection will fallback to mock.")
+
+    def detect(self, face_frame):
+        if self.DeepFace:
+            try:
+                                                                                             
+                results = self.DeepFace.analyze(face_frame, actions=['emotion'], enforce_detection=False)
+                if isinstance(results, list):
+                    res = results[0]
+                else:
+                    res = results
+                dominant = res.get('dominant_emotion', 'neutral').capitalize()
+                return {"primary": dominant, "confidence": res.get('emotion', {}).get(dominant.lower(), 50.0) / 100.0}
+            except Exception as e:
+                logger.debug(f"DeepFace analysis skipped/failed: {e}")
+        return {"primary": "Calm", "confidence": 0.8}
+
+class VisionModule:
+    
+    def __init__(self, event_bus):
+        self.event_bus = event_bus
+        self.active = False
+        
+        self.cap: Optional[cv2.VideoCapture] = None
+        self.last_camera_frame = None
+        self.last_screen_frame = None
+        
+        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        self.last_camera_frame = None
+        self.rppg = RPPGEngine(event_bus) if RPPGEngine else None
+        self.emotions = EmotionDetector()
+        
+        self.power_mode = "performance"
+        logger.info("Vision System Initialized with Health & Mood tracking.")
+
+    async def start(self):
+        if self.active: return
+        self.active = True
+        self.event_bus.subscribe("power_mode", self._on_power_mode)
+        
+        threading.Thread(target=self._camera_loop, daemon=True).start()
+        threading.Thread(target=self._screen_loop, daemon=True).start()
+        logger.info("Vision System: High-intensity observation active.")
+
+    def _on_power_mode(self, data):
+        self.power_mode = data.get("mode", "performance")
+
+    def _camera_loop(self):
+        try:
+            self.cap = cv2.VideoCapture(0)
+        except Exception as e:
+            logger.warning(f"Vision System: Camera initialization failed: {e}")
+            return
+        if not self.cap or not self.cap.isOpened():
+            logger.info("Vision System: No camera available, running without video feed.")
+            return
+        
+        while self.active:
+            if self.power_mode == "low":
+                time.sleep(2.0)                              
+            
+            ret, frame = self.cap.read()
+            if not ret:
+                time.sleep(1)
+                continue
+                
+            self.last_camera_frame = frame
+            
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
+            
+            if len(faces) > 0:
+                if self.rppg:
+                    self.rppg.process_frame(frame, faces)
+                
+                x, y, w, h = faces[0]
+                face_crop = frame[y:y+h, x:x+w]
+                mood = self.emotions.detect(face_crop)
+                
+                import base64
+                _, buffer = cv2.imencode('.jpg', face_crop)
+                face_b64 = base64.b64encode(buffer).decode('utf-8')
+                
+                self.event_bus.publish("vision_event", {
+                    "type": "human_status", 
+                    "count": len(faces),
+                    "mood": mood["primary"],
+                    "faces": faces.tolist(),
+                    "face_image": face_b64
+                })
+            
+            self.event_bus.publish("environment_event", {"type": "surroundings_active"})
+            
+            time.sleep(0.05 if self.power_mode == "performance" else 1.0)
+
+        self.cap.release()
+
+    def _screen_loop(self):
+        if not mss: return
+        try:
+            with mss.mss() as sct:
+                while self.active:
+                    if self.power_mode == "low":
+                        time.sleep(10.0)                       
+                    
+                    monitor = sct.monitors[1]
+                    sct_img = sct.grab(monitor)
+                    frame = np.array(sct_img)
+                    self.last_screen_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+                    
+                    self.event_bus.publish("screen_event", {"type": "desktop_analysis"})
+                    time.sleep(5.0)                         
+        except: pass
+
+    async def stop(self):
+        self.active = False

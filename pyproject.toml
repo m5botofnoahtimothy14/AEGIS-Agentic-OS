@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saturday-ai"
+version = "1.1.0"
+description = "Offline-capable SATURDAY AI agent and control platform"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "psutil",
+    "requests",
+    "python-dotenv",
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "paho-mqtt",
+    "aiohttp",
+    "Pillow"
+]
+
+[project.scripts]
+saturday-agent = "saturday_agent_cli:main"
+saturday-offline = "saturday_agent_cli:main"
+saturday-production = "production_agent:main"
+saturday-download = "saturday_downloader:main"
+saturday-setup = "saturday_downloader:main"
+
+[tool.setuptools]
+py-modules = ["saturday_agent_cli", "saturday_downloader"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*"]

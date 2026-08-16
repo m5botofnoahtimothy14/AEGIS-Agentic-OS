@@ -1,0 +1,11 @@
+﻿specVersion: "v1"
+serviceId: "saturday"
+location: "us-east4"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "fdcdb"
+      cloudSql:
+        instanceId: "saturday-fdc"
+connectorDirs: ["./example"]
