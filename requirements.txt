@@ -24,9 +24,9 @@ pyttsx3
 piper-tts
 
 # ==================
-# Deep Learning - Drive D (D:/AEGIS)
+# Deep Learning - Drive D (D:/SATURDAY)
 # ==================
-tensorflow>=2.15.0
+tensorflow>=2.13.0,<2.16.0
 torch>=2.0.0
 torchvision
 onnxruntime
