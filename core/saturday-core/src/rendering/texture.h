@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace aegis {
+namespace saturday {
 
 class Texture {
 public:
@@ -25,4 +25,4 @@ private:
     int channels_ = 0;
 };
 
-} // namespace aegis
+} // namespace saturday

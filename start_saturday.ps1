@@ -5,7 +5,7 @@ $RunDir   = Join-Path $Root "run"
 $BrokerExe   = Join-Path $Root "build\mosqdl\inst\mosquitto.exe"
 $BrokerConf  = Join-Path $Root "build\mosqdl\inst\mosq-open.conf"
 $PythonExe   = Join-Path $Root ".venv\Scripts\python.exe"
-$BackendArgs = @("saturday_boot.py","--watch")
+$BackendArgs = @("-m","core.main")
 $VisualCorePath = Join-Path $Root "saturday-core\bin\Release\saturday-core.exe"
 New-Item -ItemType Directory -Force -Path $LogsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $RunDir  | Out-Null

@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-namespace aegis {
+namespace saturday {
 namespace audio {
 
 class FFTProcessor {
@@ -20,4 +20,4 @@ private:
 };
 
 } // namespace audio
-} // namespace aegis
+} // namespace saturday

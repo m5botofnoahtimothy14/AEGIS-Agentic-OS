@@ -1,6 +1,6 @@
 ﻿#include "audio/audioengine.h"
 
-namespace aegis {
+namespace saturday {
 
 AudioEngine::AudioEngine() = default;
 AudioEngine::~AudioEngine() = default;
@@ -157,4 +157,4 @@ float FFTProcessor::get_total_energy() const {
     return std::min(total / smoothed_magnitudes_.size() * 10.0f, 1.0f);
 }
 
-} // namespace aegis
+} // namespace saturday

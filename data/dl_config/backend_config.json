@@ -1,10 +1,10 @@
 {
   "tensorflow": {
-    "available": true,
+    "available": false,
     "gpu": false
   },
   "pytorch": {
-    "available": true,
+    "available": false,
     "gpu": false
   },
   "onnx": {
@@ -17,5 +17,5 @@
     "name": "",
     "memory_mb": 0
   },
-  "recommended": "tensorflow"
+  "recommended": "numpy"
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace aegis {
+namespace saturday {
 namespace rendering {
 
 class PostProcess {
@@ -18,4 +18,4 @@ private:
 };
 
 } // namespace rendering
-} // namespace aegis
+} // namespace saturday

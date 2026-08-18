@@ -5,7 +5,10 @@
 #include <thread>
 #include <condition_variable>
 
-namespace aegis {
+#include "audio/audioengine.h"
+#include "state/aisstate.h"
+
+namespace saturday {
 
 class Renderer;
 class AudioEngine;
@@ -81,4 +84,4 @@ private:
 
 int run_application();
 
-} // namespace aegis
+} // namespace saturday

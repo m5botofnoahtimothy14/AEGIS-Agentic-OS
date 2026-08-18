@@ -1,5 +1,6 @@
 ﻿#include "mesh.h"
 #include "core/logger.h"
+#include "core/gl_loader.h"
 #include <cmath>
 #include <algorithm>
 
@@ -11,7 +12,7 @@
     #include <GL/gl.h>
 #endif
 
-namespace aegis {
+namespace saturday {
 
 Mesh::Mesh() = default;
 
@@ -121,7 +122,7 @@ void Mesh::build() {
     
     glBindVertexArray(0);
     
-    AEGIS_DEBUG("Mesh", "Built mesh with " + std::to_string(vertex_count_) + " vertices");
+    SATURDAY_DEBUG("Mesh", "Built mesh with " + std::to_string(vertex_count_) + " vertices");
 }
 
 void Mesh::upload() {
@@ -360,4 +361,4 @@ Mesh MeshBuilder::build() {
     return std::move(mesh_);
 }
 
-} // namespace aegis
+} // namespace saturday

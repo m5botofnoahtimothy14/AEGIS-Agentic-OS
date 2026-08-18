@@ -1,5 +1,5 @@
 ﻿#include "networking/serialization.h"
 
-namespace aegis {
+namespace saturday {
 
-} // namespace aegis
+} // namespace saturday

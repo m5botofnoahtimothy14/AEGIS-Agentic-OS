@@ -1,6 +1,6 @@
 ﻿#include "core/orbitalcore.h"
 
-namespace aegis {
+namespace saturday {
 
 OrbitalCore::OrbitalCore() = default;
 OrbitalCore::~OrbitalCore() {
@@ -185,7 +185,7 @@ std::string StartupSequence::get_phase_name() const {
         case Phase::OrbitalGrid: return "Orbital Grid";
         case Phase::ParticleConvergence: return "Particle Convergence";
         case Phase::CoreIgnition: return "Core Ignition";
-        case Phase::OnlineText: return "AEGIS CORE ONLINE";
+        case Phase::OnlineText: return "SATURDAY CORE ONLINE";
         case Phase::Complete: return "Complete";
         default: return "";
     }
@@ -193,7 +193,7 @@ std::string StartupSequence::get_phase_name() const {
 
 std::string StartupSequence::get_overlay_text() const {
     if (current_phase_ == Phase::OnlineText || current_phase_ == Phase::Complete) {
-        return "AEGIS CORE ONLINE";
+        return "SATURDAY CORE ONLINE";
     }
     return "";
 }
@@ -208,4 +208,4 @@ float StartupSequence::get_overlay_opacity() const {
     return 0.0f;
 }
 
-} // namespace aegis
+} // namespace saturday

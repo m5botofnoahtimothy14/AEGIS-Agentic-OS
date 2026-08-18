@@ -7,7 +7,7 @@
 #include <mutex>
 #include <atomic>
 
-namespace aegis {
+namespace saturday {
 
 template<typename Func>
 class ScopeGuard {
@@ -159,4 +159,4 @@ private:
     Lock& lock_;
 };
 
-} // namespace aegis
+} // namespace saturday

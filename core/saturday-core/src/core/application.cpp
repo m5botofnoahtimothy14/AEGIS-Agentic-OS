@@ -2,7 +2,7 @@
 #include "core/logger.h"
 #include "core/orbitalcore.h"
 
-namespace aegis {
+namespace saturday {
 
 Application::Application() = default;
 
@@ -10,7 +10,7 @@ Application::~Application() {
 }
 
 bool Application::initialize() {
-    AEGIS_INFO("Application", "Initializing AEGIS Core...");
+    SATURDAY_INFO("Application", "Initializing SATURDAY Core...");
     
     renderer_ = std::make_unique<Renderer>();
     audio_engine_ = std::make_unique<AudioEngine>();
@@ -19,13 +19,13 @@ bool Application::initialize() {
     orbital_core_ = std::make_unique<OrbitalCore>();
     network_manager_ = std::make_unique<NetworkManager>();
     
-    if (!renderer_->initialize(1280, 720, "AEGIS Core")) {
-        AEGIS_ERROR("Application", "Failed to initialize renderer");
+    if (!renderer_->initialize(1280, 720, "SATURDAY Core")) {
+        SATURDAY_ERROR("Application", "Failed to initialize renderer");
         return false;
     }
     
     if (!audio_engine_->initialize(44100, 1024)) {
-        AEGIS_WARN("Application", "Audio initialization failed - continuing without audio");
+        SATURDAY_WARN("Application", "Audio initialization failed - continuing without audio");
     }
     
     fft_processor_->initialize(1024);
@@ -33,7 +33,7 @@ bool Application::initialize() {
     state_manager_->initialize();
     
     if (!orbital_core_->initialize(renderer_->get_width(), renderer_->get_height())) {
-        AEGIS_ERROR("Application", "Failed to initialize orbital core");
+        SATURDAY_ERROR("Application", "Failed to initialize orbital core");
         return false;
     }
     
@@ -42,17 +42,17 @@ bool Application::initialize() {
     initialized_ = true;
     running_ = true;
     
-    AEGIS_INFO("Application", "AEGIS Core initialized successfully");
+    SATURDAY_INFO("Application", "SATURDAY Core initialized successfully");
     return true;
 }
 
 void Application::run() {
     if (!initialized_) {
-        AEGIS_ERROR("Application", "Cannot run - not initialized");
+        SATURDAY_ERROR("Application", "Cannot run - not initialized");
         return;
     }
     
-    AEGIS_INFO("Application", "Starting main loop...");
+    SATURDAY_INFO("Application", "Starting main loop...");
     
     audio_engine_->start_capture();
     
@@ -113,7 +113,7 @@ void Application::run() {
     renderer_->shutdown();
     network_manager_->shutdown();
     
-    AEGIS_INFO("Application", "Application shutdown complete");
+    SATURDAY_INFO("Application", "Application shutdown complete");
 }
 
 void Application::request_shutdown() {
@@ -140,4 +140,4 @@ bool Application::connect(const std::string& server_url) {
     return false;
 }
 
-} // namespace aegis
+} // namespace saturday

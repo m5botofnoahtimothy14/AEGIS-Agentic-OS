@@ -6,9 +6,9 @@
 #include <array>
 
 #include <GLFW/glfw3.h>
-#include <GL/gl.h>
+#include "core/gl_loader.h"
 
-namespace aegis {
+namespace saturday {
 
 class Shader;
 class Mesh;
@@ -94,4 +94,4 @@ private:
     bool initialized_ = false;
 };
 
-} // namespace aegis
+} // namespace saturday

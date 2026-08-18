@@ -1,87 +1,17 @@
 ﻿#include "shader.h"
 #include "core/logger.h"
+#include "core/gl_loader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
 
-#ifdef _WIN32
-    #include <windows.h>
-    #include <GL/gl.h>
-    #pragma comment(lib, "opengl32.lib")
-    
-    static PFNGLATTACHSHADERPROC glAttachShader;
-    static PFNGLBINDATTRIBLocationPROC glBindAttribLocation;
-    static PFNGLCOMPILESHADERPROC glCompileShader;
-    static PFNGLCREATEPROGRAMPROC glCreateProgram;
-    static PFNGLDELETEPROGRAMPROC glDeleteProgram;
-    static PFNGLDELETESHADERPROC glDeleteShader;
-    static PFNGLDETACHSHADERPROC glDetachShader;
-    static PFNGLGETACTIVEATTRIBPROC glGetActiveAttrib;
-    static PFNGLGETACTIVEUNIFORMPROC glGetActiveUniform;
-    static PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
-    static PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
-    static PFNGLGETPROGRAMIVPROC glGetProgramiv;
-    static PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
-    static PFNGLGETSHADERIVPROC glGetShaderiv;
-    static PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
-    static PFNGLLINKPROGRAMPROC glLinkProgram;
-    static PFNGLSHADERSOURCEPROC glShaderSource;
-    static PFNGLUSEPROGRAMPROC glUseProgram;
-    static PFNGLUNIFORM1FPROC glUniform1f;
-    static PFNGLUNIFORM1IPROC glUniform1i;
-    static PFNGLUNIFORM2FPROC glUniform2fv;
-    static PFNGLUNIFORM3FPROC glUniform3fv;
-    static PFNGLUNIFORM4FPROC glUniform4fv;
-    static PFNGLUNIFORMMATRIX3FVPROC glUniformMatrix3fv;
-    static PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-    
-    static bool gl_functions_loaded = false;
-    
-    static void load_gl_functions() {
-        if (gl_functions_loaded) return;
-        
-        HMODULE gl = GetModuleHandleA("opengl32.dll");
-        if (gl) {
-            glAttachShader = (PFNGLATTACHSHADERPROC)GetProcAddress(gl, "glAttachShader");
-            glBindAttribLocation = (PFNGLBINDATTRIBLocationPROC)GetProcAddress(gl, "glBindAttribLocation");
-            glCompileShader = (PFNGLCOMPILESHADERPROC)GetProcAddress(gl, "glCompileShader");
-            glCreateProgram = (PFNGLCREATEPROGRAMPROC)GetProcAddress(gl, "glCreateProgram");
-            glDeleteProgram = (PFNGLDELETEPROGRAMPROC)GetProcAddress(gl, "glDeleteProgram");
-            glDeleteShader = (PFNGLDELETESHADERPROC)GetProcAddress(gl, "glDeleteShader");
-            glDetachShader = (PFNGLDETACHSHADERPROC)GetProcAddress(gl, "glDetachShader");
-            glGetActiveAttrib = (PFNGLGETACTIVEATTRIBPROC)GetProcAddress(gl, "glGetActiveAttrib");
-            glGetActiveUniform = (PFNGLGETACTIVEUNIFORMPROC)GetProcAddress(gl, "glGetActiveUniform");
-            glGetAttribLocation = (PFNGLGETATTRIBLOCATIONPROC)GetProcAddress(gl, "glGetAttribLocation");
-            glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)GetProcAddress(gl, "glGetProgramInfoLog");
-            glGetProgramiv = (PFNGLGETPROGRAMIVPROC)GetProcAddress(gl, "glGetProgramiv");
-            glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)GetProcAddress(gl, "glGetShaderInfoLog");
-            glGetShaderiv = (PFNGLGETSHADERIVPROC)GetProcAddress(gl, "glGetShaderiv");
-            glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)GetProcAddress(gl, "glGetUniformLocation");
-            glLinkProgram = (PFNGLLINKPROGRAMPROC)GetProcAddress(gl, "glLinkProgram");
-            glShaderSource = (PFNGLSHADERSOURCEPROC)GetProcAddress(gl, "glShaderSource");
-            glUseProgram = (PFNGLUSEPROGRAMPROC)GetProcAddress(gl, "glUseProgram");
-            glUniform1f = (PFNGLUNIFORM1FPROC)GetProcAddress(gl, "glUniform1f");
-            glUniform1i = (PFNGLUNIFORM1IPROC)GetProcAddress(gl, "glUniform1i");
-            glUniform2fv = (PFNGLUNIFORM2FPROC)GetProcAddress(gl, "glUniform2fv");
-            glUniform3fv = (PFNGLUNIFORM3FPROC)GetProcAddress(gl, "glUniform3fv");
-            glUniform4fv = (PFNGLUNIFORM4FPROC)GetProcAddress(gl, "glUniform4fv");
-            glUniformMatrix3fv = (PFNGLUNIFORMMATRIX3FVPROC)GetProcAddress(gl, "glUniformMatrix3fv");
-            glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)GetProcAddress(gl, "glUniformMatrix4fv");
-            gl_functions_loaded = true;
-        }
-    }
-#else
-    #include <GL/gl.h>
-    static void load_gl_functions() {}
-#endif
-
-namespace aegis {
+namespace saturday {
 
 Shader::Shader(const std::string& vertex_source, 
                const std::string& fragment_source,
                const std::string& geometry_source) {
-    load_gl_functions();
+    saturday_load_gl_functions();
     
     GLuint vertex = compile_shader(vertex_source, GL_VERTEX_SHADER);
     GLuint fragment = compile_shader(fragment_source, GL_FRAGMENT_SHADER);
@@ -110,7 +40,7 @@ Shader::Shader(const std::string& vertex_source,
         if (!success) {
             char info_log[512];
             glGetProgramInfoLog(program_id_, 512, nullptr, info_log);
-            AEGIS_ERROR("Shader", "Shader program linking failed: " + std::string(info_log));
+            SATURDAY_ERROR("Shader", "Shader program linking failed: " + std::string(info_log));
             glDeleteProgram(program_id_);
             program_id_ = 0;
         }
@@ -171,7 +101,7 @@ GLuint Shader::compile_shader(const std::string& source, GLenum type) {
         
         std::string shader_type = (type == GL_VERTEX_SHADER) ? "vertex" :
                                   (type == GL_FRAGMENT_SHADER) ? "fragment" : "geometry";
-        AEGIS_ERROR("Shader", "Shader compilation failed (" + shader_type + "): " + std::string(info_log));
+        SATURDAY_ERROR("Shader", "Shader compilation failed (" + shader_type + "): " + std::string(info_log));
         
         glDeleteShader(shader);
         return 0;
@@ -237,7 +167,7 @@ void Shader::set_mat4(const std::string& name, const float* value, bool transpos
 std::string ShaderManager::read_file(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
-        AEGIS_ERROR("ShaderManager", "Failed to open file: " + path);
+        SATURDAY_ERROR("ShaderManager", "Failed to open file: " + path);
         return "";
     }
     
@@ -255,7 +185,7 @@ bool ShaderManager::load(const std::string& name,
     std::string geometry_source = geometry_path.empty() ? "" : read_file(geometry_path);
     
     if (vertex_source.empty() || fragment_source.empty()) {
-        AEGIS_ERROR("ShaderManager", "Failed to load shader sources");
+        SATURDAY_ERROR("ShaderManager", "Failed to load shader sources");
         return false;
     }
     
@@ -270,11 +200,11 @@ bool ShaderManager::add_from_source(const std::string& name,
         Shader shader(vertex_source, fragment_source, geometry_source);
         if (shader.is_valid()) {
             shaders_[name] = std::move(shader);
-            AEGIS_INFO("ShaderManager", "Loaded shader: " + name);
+            SATURDAY_INFO("ShaderManager", "Loaded shader: " + name);
             return true;
         }
     } catch (const std::exception& e) {
-        AEGIS_ERROR("ShaderManager", "Exception loading shader: " + std::string(e.what()));
+        SATURDAY_ERROR("ShaderManager", "Exception loading shader: " + std::string(e.what()));
     }
     return false;
 }
@@ -307,4 +237,4 @@ void ShaderManager::clear() {
     shaders_.clear();
 }
 
-} // namespace aegis
+} // namespace saturday

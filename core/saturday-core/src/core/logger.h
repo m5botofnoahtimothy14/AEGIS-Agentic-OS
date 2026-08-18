@@ -9,7 +9,7 @@
 #include <chrono>
 #include <cstring>
 
-namespace aegis {
+namespace saturday {
 
 enum class LogLevel : uint8_t {
     Debug = 0,
@@ -118,13 +118,13 @@ private:
     LogLevel min_level_ = LogLevel::Info;
 };
 
-#define AEGIS_LOG(level, component, msg) \
-    aegis::Logger::instance().log(aegis::LogLevel::level, component, msg)
+#define SATURDAY_LOG(level, component, msg) \
+    saturday::Logger::instance().log(saturday::LogLevel::level, component, msg)
 
-#define AEGIS_DEBUG(component, msg) AEGIS_LOG(Debug, component, msg)
-#define AEGIS_INFO(component, msg) AEGIS_LOG(Info, component, msg)
-#define AEGIS_WARN(component, msg) AEGIS_LOG(Warning, component, msg)
-#define AEGIS_ERROR(component, msg) AEGIS_LOG(Error, component, msg)
-#define AEGIS_CRITICAL(component, msg) AEGIS_LOG(Critical, component, msg)
+#define SATURDAY_DEBUG(component, msg) SATURDAY_LOG(Debug, component, msg)
+#define SATURDAY_INFO(component, msg) SATURDAY_LOG(Info, component, msg)
+#define SATURDAY_WARN(component, msg) SATURDAY_LOG(Warning, component, msg)
+#define SATURDAY_ERROR(component, msg) SATURDAY_LOG(Error, component, msg)
+#define SATURDAY_CRITICAL(component, msg) SATURDAY_LOG(Critical, component, msg)
 
-} // namespace aegis
+} // namespace saturday

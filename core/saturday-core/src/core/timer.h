@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace aegis {
+namespace saturday {
 
 class Timer {
 public:
@@ -105,7 +105,7 @@ public:
     
     ~ScopedTimer() {
         if (log_) {
-            AEGIS_INFO("Timer", name_ + ": " + timer_.elapsed_string());
+            SATURDAY_INFO("Timer", name_ + ": " + timer_.elapsed_string());
         }
     }
 
@@ -117,4 +117,4 @@ private:
     Timer timer_;
 };
 
-} // namespace aegis
+} // namespace saturday

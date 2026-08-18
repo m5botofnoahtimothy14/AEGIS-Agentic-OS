@@ -1,6 +1,7 @@
 ﻿#include "networking/websocketclient.h"
+#include "state/aisstate.h"
 
-namespace aegis {
+namespace saturday {
 
 WebSocketClient::WebSocketClient() = default;
 WebSocketClient::~WebSocketClient() = default;
@@ -101,4 +102,4 @@ void NetworkManager::set_state_callback(StateCallback callback) {
     state_callback_ = callback;
 }
 
-} // namespace aegis
+} // namespace saturday

@@ -1,6 +1,6 @@
 ﻿#include "core/logger.h"
 #include <iostream>
 
-namespace aegis {
+namespace saturday {
 
-} // namespace aegis
+} // namespace saturday

@@ -47,11 +47,6 @@ config/*.salt
 data/agent_state.json
 data/notes/
 data/ai_knowledge.json
-data/device_profile.json
-data/wol.json
-data/deep_learning/improvement_nn.json
-run/
-mosquitto.log
 
 # Backup and throwaway artifacts
 backup/
@@ -87,6 +82,7 @@ pip_packages/
 .tensorflow/
 .torch/
 .keras/
+=2.15.0
 onnxruntime-*.whl
 tensorflow_cpu-*.whl
 transformers-*.whl

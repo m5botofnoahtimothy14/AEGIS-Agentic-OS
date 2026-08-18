@@ -249,7 +249,7 @@ int wmain() {
     fs::create_directories(logs_dir, ec);
     fs::create_directories(run_dir, ec);
 
-    const fs::path visual_core = root / "aegis-core" / "bin" / "Release" / "aegis-core.exe";
+    const fs::path visual_core = root / "saturday-core" / "bin" / "Release" / "saturday-core.exe";
     const fs::path broker_exe = root / "build" / "mosqdl" / "inst" / "mosquitto.exe";
     const fs::path broker_conf = root / "build" / "mosqdl" / "inst" / "mosq-open.conf";
     const fs::path python_exe = root / ".venv" / "Scripts" / "python.exe";
@@ -259,7 +259,7 @@ int wmain() {
     const fs::path backend_pid_file = run_dir / "backend.pid";
 
     std::wcout << L"========================================\n";
-    std::wcout << L"  AEGIS ORCHESTRATOR INITIALIZING\n";
+    std::wcout << L"  SATURDAY ORCHESTRATOR INITIALIZING\n";
     std::wcout << L"========================================\n";
 
     if (fs::exists(visual_core)) {
@@ -305,7 +305,7 @@ int wmain() {
         std::wcout << L"      Mosquitto binary missing, skipping broker startup.\n";
     }
 
-    std::wcout << L"[3/3] Ensuring AEGIS backend...\n";
+    std::wcout << L"[3/3] Ensuring SATURDAY backend...\n";
     bool backend_running = false;
     if (auto pid = read_pid_file(backend_pid_file); pid.has_value()) {
         if (is_process_running(*pid)) {
@@ -340,12 +340,12 @@ int wmain() {
         );
 
         if (!backend_started) {
-            std::wcerr << L"      Failed to start AEGIS backend.\n";
+            std::wcerr << L"      Failed to start SATURDAY backend.\n";
             return 4;
         }
 
         write_pid_file(backend_pid_file, backend_pid);
-        std::wcout << L"      AEGIS backend started (PID " << backend_pid << L").\n";
+        std::wcout << L"      SATURDAY backend started (PID " << backend_pid << L").\n";
     }
 
     std::wcout << L"Startup orchestration complete.\n";

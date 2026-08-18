@@ -1,6 +1,6 @@
 ﻿#include "state/statemanager.h"
 
-namespace aegis {
+namespace saturday {
 
 Color3 Color3::from_hex(uint32_t hex) {
     return Color3(
@@ -205,4 +205,4 @@ void StateManager::initiate_transfer(const std::string& target_node) {
     set_state(AIState::Transfer, false);
 }
 
-} // namespace aegis
+} // namespace saturday

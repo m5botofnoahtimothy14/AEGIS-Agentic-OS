@@ -9,7 +9,7 @@
 #include "rendering/shader.h"
 #include "rendering/mesh.h"
 
-namespace aegis {
+namespace saturday {
 
 class OrbitalCore {
 public:
@@ -153,4 +153,4 @@ private:
     void next_phase();
 };
 
-} // namespace aegis
+} // namespace saturday

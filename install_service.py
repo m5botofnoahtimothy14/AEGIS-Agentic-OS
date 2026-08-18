@@ -37,7 +37,7 @@ class SATURDAYService(win32serviceutil.ServiceFramework):
     def main(self):
         os.chdir(r"{base_dir.replace(chr(92), chr(92)+chr(92))}")
         proc = subprocess.Popen(
-            [sys.executable, "saturday_boot.py", "--watch"],
+            [sys.executable, "saturday_self_server.py"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
@@ -47,7 +47,7 @@ class SATURDAYService(win32serviceutil.ServiceFramework):
                 break
             if proc.poll() is not None:
                 proc = subprocess.Popen(
-                    [sys.executable, "saturday_boot.py", "--watch"],
+                    [sys.executable, "saturday_self_server.py"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )

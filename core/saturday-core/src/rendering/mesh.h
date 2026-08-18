@@ -5,9 +5,9 @@
 #include <cstdint>
 #include <cmath>
 
-#include <GL/gl.h>
+#include "core/gl_loader.h"
 
-namespace aegis {
+namespace saturday {
 
 struct Vertex {
     float position[3];
@@ -87,4 +87,4 @@ private:
     Mesh mesh_;
 };
 
-} // namespace aegis
+} // namespace saturday

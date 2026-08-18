@@ -6,7 +6,9 @@
 #include <functional>
 #include <memory>
 
-namespace aegis {
+#include "audio/audioengine.h"
+
+namespace saturday {
 
 enum class AIState {
     Idle,       // Default resting state - slow breathing amber glow
@@ -151,4 +153,4 @@ private:
     StateChangeCallback state_change_callback_;
 };
 
-} // namespace aegis
+} // namespace saturday

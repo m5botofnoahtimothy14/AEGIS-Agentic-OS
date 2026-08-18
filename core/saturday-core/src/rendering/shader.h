@@ -4,9 +4,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include <GL/gl.h>
+#include "core/gl_loader.h"
 
-namespace aegis {
+namespace saturday {
 
 class Shader {
 public:
@@ -89,4 +89,4 @@ struct ShaderSource {
     std::string geometry;
 };
 
-} // namespace aegis
+} // namespace saturday

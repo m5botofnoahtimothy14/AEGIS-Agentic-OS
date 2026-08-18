@@ -1,4 +1,4 @@
-              
+﻿              
 
 import asyncio
 import signal
@@ -127,13 +127,13 @@ SocialAgent = _optional_import("communication.social_agent", "SocialAgent", _Una
 VoiceCommandRouter = _optional_import("communication.voice_command_router", "VoiceCommandRouter", _UnavailableDependency)
 WhatsAppNavigator = _optional_import("communication.whatsapp_navigator", "WhatsAppNavigator", _UnavailableDependency)
 InstaNavigator = _optional_import("communication.insta_navigator", "InstaNavigator", _UnavailableDependency)
+ObsidianBrainLogger = _optional_import("obsidian_brain", "ObsidianBrainLogger", _UnavailableDependency)
 InterDeviceSync = _optional_import("distributed", "InterDeviceSync", _UnavailableDependency)
 DeviceRegistry = _optional_import("distributed", "DeviceRegistry", _UnavailableDependency)
 RemoteControl = _optional_import("distributed", "RemoteControl", _UnavailableDependency)
 SessionMirror = _optional_import("distributed", "SessionMirror", _UnavailableDependency)
 try_mount_secure_gateway = _optional_import("core.secure_gateway_mount", "try_mount_secure_gateway")
 ShowtimeManager = _optional_import("orchestrator.showtime_manager", "ShowtimeManager", _UnavailableDependency)
-SaturdayProcessor = _optional_import("core.processor", "SaturdayProcessor", _UnavailableDependency)
 DATA_DIR = PROJECT_ROOT / "data"
 FACE_DB_FILE = DATA_DIR / "faces.json"
 FACE_IMAGE_DIR = DATA_DIR / "faces"
@@ -755,13 +755,6 @@ class SATURDAYCore:
         self.runtime = RuntimeStats()
         self.showtime = ShowtimeManager(self.event_bus, self)
         self.showtime.start_lineup()
-        try:
-            self.processor = SaturdayProcessor(event_bus=self.event_bus, data_dir=DATA_DIR)
-            self.processor.optimize()
-            logger.info("SaturdayProcessor initialized and optimized for device.")
-        except Exception as e:
-            logger.warning(f"SaturdayProcessor init failed: {e}")
-            self.processor = None
         self.config_manager = ConfigManager()
         self.strict_prod = os.getenv("SATURDAY_STRICT_PROD", "false").strip().lower() in {
             "1",
@@ -857,14 +850,11 @@ class SATURDAYCore:
         except Exception as e:
             logger.warning(f"CallAgent init failed: {e}")
             self.call_agent = None
-        
-        # Initialize vision system
-        if self.vision_enabled:
-            try:
-                self.vision = VisionModule(self.event_bus)
-            except Exception as e:
-                logger.warning(f"VisionSystem init failed: {e}")
-                self.vision = None
+        try:
+            self.vision = VisionModule(self.event_bus)
+        except Exception as e:
+            logger.warning(f"VisionSystem init failed: {e}")
+            self.vision = None
         try:
             self.sound_monitor = SoundMonitor(self.event_bus, threshold_db=self.sound_threshold_db)
         except Exception as e:
@@ -904,11 +894,6 @@ class SATURDAYCore:
         except Exception as e:
             logger.warning(f"LinkedBrain init failed: {e}")
             self.brain = None
-        if getattr(self, "processor", None) is not None:
-            try:
-                self.processor.set_brain(self.brain)
-            except Exception:
-                pass
         try:
             self.greet = GreetingManager(self.event_bus, self.brain, self.speech)
         except Exception as e:
@@ -1159,6 +1144,12 @@ class SATURDAYCore:
         except Exception as e:
             logger.warning(f"System tray init failed: {e}")
         try:
+            self.obsidian_brain = ObsidianBrainLogger(self.event_bus)
+            logger.info("Obsidian Brain Logger initialized", vault=self.obsidian_brain.vault_path)
+        except Exception as e:
+            logger.warning(f"ObsidianBrainLogger init failed: {e}")
+            self.obsidian_brain = None
+        try:
             self.showtime.complete_stage("standard")
         except Exception as e:
             logger.warning(f"Showtime standard stage completion failed: {e}")
@@ -1216,8 +1207,6 @@ class SATURDAYCore:
         self.event_bus.subscribe("admin_mood_update", _ws_forward("admin_mood_update"))
         self.event_bus.subscribe("rewrite_suggestion", _ws_forward("rewrite_suggestion"))
         self.event_bus.subscribe("homebot_telemetry", _ws_forward("homebot_telemetry"))
-        for _realtime_evt in ("search_results", "processor_activity", "device_profile", "power_mode"):
-            self.event_bus.subscribe(_realtime_evt, _ws_forward(_realtime_evt))
         self._emit_startup_greeting()
         logger.info("SATURDAY Core initialized successfully")
     def _firebase_project_id(self) -> str:
@@ -1732,11 +1721,10 @@ class SATURDAYCore:
             logger.info("Predictive Engine active.")
         self._safe_create_task_compat(self._chatter_loop())
         self._safe_create_task_compat(self._showtime_supervision_loop())
-        self._safe_create_task_compat(self._camera_keepalive_loop())
         logger.info("Showtime supervision loop started.")
         self.event_bus.subscribe("vision_event", lambda data: asyncio.create_task(self._on_vision_event(data)) if isinstance(data, dict) else None)
-        self.event_bus.subscribe("camera_start", lambda _: asyncio.create_task(getattr(self.vision, "start_stream", None)() if hasattr(self.vision, "start_stream") else self.vision.start()) if self.vision else None)
-        self.event_bus.subscribe("camera_stop", lambda _: asyncio.create_task(getattr(self.vision, "stop_stream", None)() if hasattr(self.vision, "stop_stream") else self.vision.stop()) if self.vision else None)
+        self.event_bus.subscribe("camera_start", lambda _: asyncio.create_task(self.vision.start_stream()) if self.vision else None)
+        self.event_bus.subscribe("camera_stop", lambda _: asyncio.create_task(self.vision.stop_stream()) if self.vision else None)
         if self.social_agent:
             self._safe_create_task_compat(self.social_agent.start_monitoring())
             logger.info("Social/Gmail monitor started.")
@@ -1744,12 +1732,6 @@ class SATURDAYCore:
         if cloud_bridge:
             self._safe_create_task_compat(cloud_bridge.start())
             logger.info("Cloud Bridge remote listener started.")
-        if getattr(self, "processor", None) is not None:
-            try:
-                self.processor.start_loops()
-                logger.info("SaturdayProcessor autonomous loop started.")
-            except Exception as e:
-                logger.warning(f"SaturdayProcessor loop start failed: {e}")
         logger.info("All background loops initiated.")
 
     async def _showtime_supervision_loop(self):
@@ -1859,14 +1841,6 @@ class SATURDAYCore:
     def setup_routes(self):
         @self.app.get("/")
         async def root(request: Request):
-            web_root = PROJECT_ROOT / "core" / "ui" / "web" / "index.html"
-            if web_root.exists():
-                from fastapi.responses import FileResponse
-                return FileResponse(str(web_root))
-            return self.templates.TemplateResponse(request, "index.html")
-
-        @self.app.get("/legacy")
-        async def legacy_root(request: Request):
             return self.templates.TemplateResponse(request, "index.html")
 
         @self.app.get("/api/secure/mount-status")
@@ -1904,22 +1878,12 @@ class SATURDAYCore:
         @self.app.get("/api/health")
         async def api_health():
             try:
-                vm = psutil.virtual_memory()
-                payload = {
-                    "cpu_percent": psutil.cpu_percent(interval=0.1),
-                    "memory_percent": vm.percent,
-                    "memory_available": f"{vm.available / (1024**3):.1f}GB",
-                    "memory_used_gb": round(vm.used / (1024**3), 1),
-                    "disk_percent": psutil.disk_usage('/').percent,
+                return {
+                    "cpu_temp": "45°C",
+                    "memory_available": f"{psutil.virtual_memory().available / (1024**3):.1f}GB",
                     "system_status": "Healthy",
-                    "power_status": "AC",
-                    "uptime_sec": int(self.runtime.get_uptime()),
+                    "power_status": "AC"
                 }
-                battery = psutil.sensors_battery() if hasattr(psutil, "sensors_battery") else None
-                if battery is not None:
-                    payload["power_status"] = "Battery" if not battery.power_plugged else "AC"
-                    payload["battery_percent"] = battery.percent
-                return payload
             except Exception as e:
                 logger.error(f"API health error: {e}")
                 return {"error": str(e)}
@@ -2348,117 +2312,6 @@ class SATURDAYCore:
             action = data.get("action")
             self.event_bus.publish("quick_action", {"action": action})
             return {"success": True, "action": action}
-        @self.app.get("/api/processor")
-        async def api_processor_status():
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            return self.processor.status()
-        @self.app.post("/api/processor/optimize")
-        async def api_processor_optimize():
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            return self.processor.optimize()
-        @self.app.post("/api/brain/think")
-        async def api_brain_think(data: dict):
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            goal = (data or {}).get("goal", "")
-            return await self.processor.think(goal)
-        @self.app.get("/api/brain/status")
-        async def api_brain_status():
-            brain = getattr(self, "brain", None)
-            persona = self.personas.get_status() if hasattr(self.personas, "get_status") else {}
-            return {
-                "connected": brain is not None,
-                "persona": persona,
-                "processor": self.processor.status() if getattr(self, "processor", None) else {},
-            }
-        @self.app.post("/api/search")
-        async def api_search(data: dict):
-            payload = data or {}
-            query = str(payload.get("query", "")).strip()
-            if not query:
-                raise HTTPException(status_code=400, detail="query is required")
-            max_results = int(payload.get("max_results", 6) or 6)
-            if not getattr(self, "processor", None):
-                return {"success": False, "error": "SaturdayProcessor not initialized"}
-            return self.processor.search.search(query, max_results=max_results)
-        @self.app.get("/api/search/recent")
-        async def api_search_recent():
-            if not getattr(self, "processor", None):
-                return []
-            return self.processor.search.recent_queries()
-        @self.app.get("/api/threads")
-        async def api_threads():
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            return self.processor.threads.summary()
-        @self.app.post("/api/threads/cancel")
-        async def api_threads_cancel(data: dict):
-            if not getattr(self, "processor", None):
-                return {"success": False, "error": "SaturdayProcessor not initialized"}
-            name = (data or {}).get("name", "")
-            return {"success": self.processor.threads.cancel(name), "name": name}
-        @self.app.get("/api/power")
-        async def api_power_capabilities():
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            return self.processor.power.capabilities()
-        @self.app.post("/api/power/wol")
-        async def api_power_save_wol(data: dict):
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            payload = data or {}
-            return self.processor.power.save_wol(
-                mac=str(payload.get("mac", "")).strip(),
-                ip=str(payload.get("ip", "")).strip(),
-                port=int(payload.get("port", 9) or 9),
-            )
-        @self.app.post("/api/power/wake")
-        async def api_power_wake(data: dict):
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            payload = data or {}
-            return self.processor.power.send_wake_on_lan(
-                mac=str(payload.get("mac", "")).strip(),
-                ip=str(payload.get("ip", "")).strip(),
-                port=int(payload.get("port", 9) or 9),
-            )
-        @self.app.post("/api/power/shutdown")
-        async def api_power_shutdown(data: dict):
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            payload = data or {}
-            return self.processor.power.os_shutdown(
-                delay=int(payload.get("delay", 0) or 0),
-                confirm=bool(payload.get("confirm", False)),
-            )
-        @self.app.post("/api/power/restart")
-        async def api_power_restart(data: dict):
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            payload = data or {}
-            return self.processor.power.os_restart(
-                delay=int(payload.get("delay", 0) or 0),
-                confirm=bool(payload.get("confirm", False)),
-            )
-        @self.app.post("/api/power/sleep")
-        async def api_power_sleep(data: dict):
-            if not getattr(self, "processor", None):
-                return {"error": "SaturdayProcessor not initialized"}
-            payload = data or {}
-            return self.processor.power.os_sleep(confirm=bool(payload.get("confirm", False)))
-        @self.app.get("/api/logs")
-        async def api_logs(lines: int = 60):
-            log_file = LOG_DIR / "saturday.log"
-            if not log_file.exists():
-                return []
-            try:
-                with open(log_file, "r", encoding="utf-8", errors="replace") as fh:
-                    tail = fh.readlines()[-max(1, min(int(lines), 500)):]
-                return [line.rstrip("\n") for line in tail]
-            except Exception as e:
-                return {"error": str(e)}
         @self.app.post("/api/terminal/execute")
         async def api_terminal_execute(data: dict):
             cmd = data.get("command", "")
@@ -2479,10 +2332,7 @@ class SATURDAYCore:
         @self.app.get("/status")
         async def status(): return self.runtime.get_resource_usage()
         @self.app.get("/health")
-        async def health_check():
-            if not self.health:
-                return {"status": "unavailable", "error": "Health monitor not initialized"}
-            return await self.health.check()
+        async def health_check(): return await self.health.check()
         @self.app.post("/chat")
         async def chat(prompt: str):
             response = ""
@@ -2491,86 +2341,29 @@ class SATURDAYCore:
                 response += chunk
             return {"persona": persona.name, "response": response}
         @self.app.get("/vision/start")
-        async def vision_start():
-            if self.vision:
-                try:
-                    await self.vision.start()
-                    logger.info("Vision System started successfully.")
-                    
-                    # Ensure camera is always on for mood detection
-                    self.camera_active = True
-                    self.event_bus.publish("camera_start", {})
-                    
-                    if not hasattr(self, '_camera_task') or self._camera_task is None or self._camera_task.done():
-                        self._camera_task = asyncio.create_task(self._broadcast_camera_loop())
-                        
-                    logger.info("Camera activated for continuous mood detection.")
-                    return {"status": "started"}
-                except Exception as e:
-                    logger.error(f"Vision system startup failed: {e}", exc_info=True)
-                    return {"status": "failed", "reason": str(e), "error_type": type(e).__name__}
-            else:
-                return {"status": "failed", "reason": "Vision system not available", "error_type": "SystemNotAvailable"}
-
-        @self.app.get("/vision/stop")
-        async def stop_vision():
-            if self.vision:
-                try:
-                    await self.vision.stop()
-                    logger.info("Camera deactivated.")
-                    return {"status": "stopped"}
-                except Exception as e:
-                    logger.warning(f"Vision System failed to stop: {e}")
-                    return {"status": "failed", "reason": str(e)}
-            else:
-                return {"status": "failed", "reason": "Vision system not available"}
-
-        # Removed misplaced startup code that was causing syntax errors
-        # The vision system startup logic should be in the appropriate method
-
-        @self.app.get("/vision/stop")
-        async def vision_stop():
-            if self.vision:
-                await self.vision.stop()
-                logger.info("Vision System stopped successfully.")
-            return {"success": True, "message": "Vision System stopped"}
-        self._register_extended_routes()
-
-    async def _camera_keepalive_loop(self):
-        auto_camera = os.getenv("SATURDAY_AUTO_CAMERA", "true").strip().lower() in {"1", "true", "yes", "on"}
-        while self.running:
-            try:
-                if auto_camera and not self.camera_active:
-                    self.camera_active = True
-                    self.event_bus.publish("camera_start", {})
-                    if not hasattr(self, '_camera_task') or self._camera_task is None or self._camera_task.done():
-                        self._camera_task = asyncio.create_task(self._broadcast_camera_loop())
-                if self.vision and not getattr(self.vision, "active", False):
-                    await self.vision.start()
-                await asyncio.sleep(1.0)
-            except Exception as e:
-                logger.warning(f"Showtime supervision loop error: {e}")
-                await asyncio.sleep(5)
-
-    def _register_extended_routes(self):
+        async def v_start(): asyncio.create_task(self.vision.start_stream()); return {"status": "started"}
         @self.app.get("/tasks")
-        async def list_tasks(): 
-            return self.task_manager.list_tasks()
-
-        @self.app.get("/homebot/status")
-        async def homebot_status():
+        async def list_tasks(): return self.task_manager.list_tasks()
+        @self.app.post("/tasks/clear")
+        async def clear_tasks(): self.task_manager.clear_done(); return {"status": "cleared"}
+        @self.app.post("/layout/{name}")
+        async def set_layout(name: str):
+            self.window_manager.apply_layout(name); return {"layout": name}
+        @self.app.get("/api/homebot/status")
+        async def api_homebot_status():
             if not self.homebot:
                 return {"connected": False, "error": "HomeBot integration unavailable."}
             return self.homebot.get_status()
-
         @self.app.post("/api/homebot/command")
         async def api_homebot_command(data: dict):
-            command = data.get("command", "")
+            cmd = data.get("command", "stop")
             if not self.homebot:
                 return {"success": False, "error": "HomeBot integration unavailable."}
-            result = self.homebot.execute_command(command)
+            result = self.homebot.execute_command(cmd, duration=data.get("duration", 1), speed=data.get("speed", 80))
             return {"success": result.get("status") == "success", **result}
-
+        @self.app.get("/api/homebot/logs")
+        async def api_homebot_logs():
+            return {"logs": getattr(self.homebot, "logs", [])}
         @self.app.post("/api/homebot/navigate")
         async def api_homebot_navigate(data: dict):
             x = data.get("x", 0)
@@ -2579,10 +2372,8 @@ class SATURDAYCore:
                 return {"success": False, "error": "HomeBot integration unavailable."}
             result = self.homebot.autonomous_navigation((x, y))
             return {"success": result.get("status") == "success", **result}
-
         @self.app.get("/api/music/playlists")
         async def api_music_playlists():
-
             return {"playlists": self.music.playlists if self.music else {}}
         @self.app.post("/api/music/play")
         async def api_music_play(data: dict):
@@ -2959,17 +2750,11 @@ Face ID: {'Enabled' if self.faceid_enabled else 'Disabled'}"""
                 }
                 health = {
                     "type": "health_update",
-                    "cpu_percent": cpu,
-                    "memory_percent": memory.percent,
+                    "cpu_temp": "45°C",
                     "memory_available": f"{memory.available / (1024**3):.1f}GB",
                     "system_status": "Healthy",
-                    "power_status": "AC",
-                    "uptime_sec": int(self.runtime.get_uptime()),
+                    "power_status": "AC"
                 }
-                battery = psutil.sensors_battery() if hasattr(psutil, "sensors_battery") else None
-                if battery is not None:
-                    health["power_status"] = "Battery" if not battery.power_plugged else "AC"
-                    health["battery_percent"] = battery.percent
                 await self.broadcast_to_ws(stats)
                 await self.broadcast_to_ws(health)
             except Exception as e:
@@ -2977,11 +2762,6 @@ Face ID: {'Enabled' if self.faceid_enabled else 'Disabled'}"""
             await asyncio.sleep(2)                          
     def _reset_idle(self):
         self.last_activity = time.time()
-        if getattr(self, "processor", None) is not None:
-            try:
-                self.processor._reset_idle()
-            except Exception:
-                pass
         if self.idle_mode:
             logger.info("SATURDAY RE-ENGAGED: Performance Mode Restored.", source="user_input")
             self.idle_mode = False
@@ -2996,9 +2776,6 @@ Face ID: {'Enabled' if self.faceid_enabled else 'Disabled'}"""
             ("acoustic_scene", "acoustic_scene"),
             ("vitals_update", "vitals_update"),
             ("homebot_telemetry", "homebot_telemetry"),
-            ("search_results", "search_results"),
-            ("processor_activity", "processor_activity"),
-            ("device_profile", "device_profile"),
         ]
         for evt_name, ws_type in forward_map:
             try:
@@ -3130,10 +2907,7 @@ Face ID: {'Enabled' if self.faceid_enabled else 'Disabled'}"""
         if hasattr(self, 'server'): 
             await self.server.shutdown()
 async def main():
-    global _saturday_core
     saturday = SATURDAYCore()
-    _saturday_core = saturday
-    app.saturday = saturday
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try: loop.add_signal_handler(sig, lambda: asyncio.create_task(saturday.shutdown()))

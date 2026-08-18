@@ -7,7 +7,7 @@
 #include <mutex>
 #include <array>
 
-namespace aegis {
+namespace saturday {
 
 enum class AudioState {
     Stopped,
@@ -140,4 +140,4 @@ struct AudioReactiveData {
     double timestamp = 0.0;
 };
 
-} // namespace aegis
+} // namespace saturday

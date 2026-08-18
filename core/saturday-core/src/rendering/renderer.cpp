@@ -1,16 +1,16 @@
 ﻿#include "rendering/renderer.h"
 #include "core/logger.h"
 #include "core/raii.h"
+#include "core/gl_loader.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #pragma comment(lib, "glfw3.lib")
 
 #include <GL/gl.h>
-#include <GL/glew.h>
 #pragma comment(lib, "opengl32.lib")
 
-namespace aegis {
+namespace saturday {
 
 static bool glfw_initialized = false;
 
@@ -22,7 +22,7 @@ Renderer::~Renderer() {
 
 bool Renderer::initialize(int width, int height, const std::string& title) {
     if (initialized_) {
-        AEGIS_WARN("Renderer", "Already initialized");
+        SATURDAY_WARN("Renderer", "Already initialized");
         return true;
     }
     
@@ -31,36 +31,28 @@ bool Renderer::initialize(int width, int height, const std::string& title) {
     
     if (!glfw_initialized) {
         if (!glfwInit()) {
-            AEGIS_ERROR("Renderer", "Failed to initialize GLFW");
+            SATURDAY_ERROR("Renderer", "Failed to initialize GLFW");
             return false;
         }
         glfw_initialized = true;
-        AEGIS_INFO("Renderer", "GLFW initialized");
+        SATURDAY_INFO("Renderer", "GLFW initialized");
     }
     
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4); // MSAA 4x
     
     window_ = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!window_) {
-        AEGIS_ERROR("Renderer", "Failed to create window");
+        SATURDAY_ERROR("Renderer", "Failed to create window");
         return false;
     }
     
     glfwMakeContextCurrent(window_);
     
-    glewExperimental = GL_TRUE;
-    GLenum err = glewInit();
-    if (err != GLEW_OK) {
-        AEGIS_ERROR("Renderer", "Failed to initialize GLEW: " + 
-                   std::string((const char*)glewGetErrorString(err)));
-        return false;
-    }
-    
-    while (glGetError() != GL_NO_ERROR) {}
+    saturday_load_gl_functions();
     
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -76,9 +68,9 @@ bool Renderer::initialize(int width, int height, const std::string& title) {
     last_time_ = glfwGetTime();
     
     initialized_ = true;
-    AEGIS_INFO("Renderer", "OpenGL 4.5+ renderer initialized successfully");
-    AEGIS_INFO("Renderer", "OpenGL Version: " + std::string((const char*)glGetString(GL_VERSION)));
-    AEGIS_INFO("Renderer", "GPU: " + std::string((const char*)glGetString(GL_RENDERER)));
+    SATURDAY_INFO("Renderer", "OpenGL renderer initialized successfully");
+    SATURDAY_INFO("Renderer", "OpenGL Version: " + std::string((const char*)glGetString(GL_VERSION)));
+    SATURDAY_INFO("Renderer", "GPU: " + std::string((const char*)glGetString(GL_RENDERER)));
     
     return true;
 }
@@ -92,7 +84,7 @@ void Renderer::shutdown() {
     }
     
     initialized_ = false;
-    AEGIS_INFO("Renderer", "Renderer shutdown complete");
+    SATURDAY_INFO("Renderer", "Renderer shutdown complete");
 }
 
 void Renderer::begin_frame() {
@@ -170,4 +162,4 @@ void Renderer::set_vsync(bool enabled) {
     glfwSwapInterval(enabled ? 1 : 0);
 }
 
-} // namespace aegis
+} // namespace saturday

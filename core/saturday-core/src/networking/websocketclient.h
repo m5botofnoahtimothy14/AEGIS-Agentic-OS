@@ -8,7 +8,7 @@
 #include <mutex>
 #include <queue>
 
-namespace aegis {
+namespace saturday {
 
 enum class ConnectionState {
     Disconnected,
@@ -107,4 +107,4 @@ private:
     class AISystemState* current_state_ = nullptr;
 };
 
-} // namespace aegis
+} // namespace saturday
