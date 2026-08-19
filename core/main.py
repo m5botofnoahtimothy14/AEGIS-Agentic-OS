@@ -95,6 +95,10 @@ SpatialAudioEngine = _optional_import("core.spatial_audio", "SpatialAudioEngine"
 from core.agent_service import create_agent_app
 from core.task_manager import TaskManager
 from core.persona import get_persona_manager
+from core.system_control import get_system_controller
+from core.ai_governance import get_governance_engine
+from core.voice_integration import get_voice_handler
+from core.real_integration import get_real_integration
 
 app.mount("/agent", create_agent_app(), name="agent")
 WindowManager = _optional_import("core.window_manager", "WindowManager", _UnavailableDependency)
@@ -641,6 +645,217 @@ async def get_health_status():
         }
     }
 
+# ==================== SYSTEM CONTROL ====================
+
+@router.post("/system/execute", dependencies=[Depends(verify_firebase_token)])
+async def execute_system_command(payload: dict):
+    """Execute a system command"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    command = payload.get("command", "")
+    if not command:
+        raise HTTPException(status_code=400, detail="Command required")
+    
+    result = system_control.execute_command(command)
+    return result
+
+@router.post("/system/app/open", dependencies=[Depends(verify_firebase_token)])
+async def open_application(payload: dict):
+    """Open an application"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    app = payload.get("app", "")
+    if not app:
+        raise HTTPException(status_code=400, detail="App name required")
+    
+    result = system_control.open_application(app)
+    return result
+
+@router.post("/system/file/open", dependencies=[Depends(verify_firebase_token)])
+async def open_file(payload: dict):
+    """Open a file"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    path = payload.get("path", "")
+    if not path:
+        raise HTTPException(status_code=400, detail="Path required")
+    
+    result = system_control.open_file(path)
+    return result
+
+@router.post("/system/folder/open", dependencies=[Depends(verify_firebase_token)])
+async def open_folder(payload: dict):
+    """Open a folder"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    path = payload.get("path", "")
+    if not path:
+        raise HTTPException(status_code=400, detail="Path required")
+    
+    result = system_control.open_folder(path)
+    return result
+
+@router.post("/system/web/search", dependencies=[Depends(verify_firebase_token)])
+async def web_search(payload: dict):
+    """Perform web search"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    query = payload.get("query", "")
+    engine = payload.get("engine", "duckduckgo")
+    if not query:
+        raise HTTPException(status_code=400, detail="Query required")
+    
+    result = system_control.web_search(query, engine)
+    return result
+
+@router.post("/system/media/play", dependencies=[Depends(verify_firebase_token)])
+async def play_media(payload: dict):
+    """Play media"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    query = payload.get("query", "")
+    platform = payload.get("platform", "youtube")
+    if not query:
+        raise HTTPException(status_code=400, detail="Query required")
+    
+    result = system_control.play_media(query, platform)
+    return result
+
+@router.post("/system/action", dependencies=[Depends(verify_firebase_token)])
+async def system_action(payload: dict):
+    """Perform system action"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    action = payload.get("action", "")
+    if not action:
+        raise HTTPException(status_code=400, detail="Action required")
+    
+    result = system_control.system_action(action)
+    return result
+
+@router.get("/system/info", dependencies=[Depends(verify_firebase_token)])
+async def system_info():
+    """Get system information"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    return system_control.get_system_info()
+
+@router.get("/system/processes", dependencies=[Depends(verify_firebase_token)])
+async def get_processes(limit: int = 20):
+    """Get running processes"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    return {"processes": system_control.get_running_processes(limit)}
+
+@router.post("/system/process/kill", dependencies=[Depends(verify_firebase_token)])
+async def kill_process(payload: dict):
+    """Kill a process"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    pid = payload.get("pid")
+    if not pid:
+        raise HTTPException(status_code=400, detail="PID required")
+    
+    return system_control.kill_process(int(pid))
+
+@router.get("/system/windows", dependencies=[Depends(verify_firebase_token)])
+async def get_windows():
+    """Get open windows"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    return {"windows": system_control.list_windows()}
+
+@router.post("/system/window/focus", dependencies=[Depends(verify_firebase_token)])
+async def focus_window(payload: dict):
+    """Focus a window"""
+    core = _require_core()
+    system_control = getattr(core, "system_control", None)
+    if not system_control:
+        raise HTTPException(status_code=503, detail="System control not available")
+    
+    title = payload.get("title", "")
+    if not title:
+        raise HTTPException(status_code=400, detail="Window title required")
+    
+    return system_control.focus_window(title)
+
+# ==================== GOVERNANCE ====================
+
+@router.get("/governance/stats", dependencies=[Depends(verify_firebase_token)])
+async def governance_stats():
+    """Get governance statistics"""
+    core = _require_core()
+    governance = getattr(core, "governance", None)
+    if not governance:
+        raise HTTPException(status_code=503, detail="Governance engine not available")
+    
+    return governance.get_stats()
+
+@router.get("/governance/audit", dependencies=[Depends(verify_firebase_token)])
+async def governance_audit(limit: int = 100):
+    """Get governance audit log"""
+    core = _require_core()
+    governance = getattr(core, "governance", None)
+    if not governance:
+        raise HTTPException(status_code=503, detail="Governance engine not available")
+    
+    return {"audit_log": governance.get_audit_log(limit)}
+
+@router.post("/governance/confirm", dependencies=[Depends(verify_firebase_token)])
+async def governance_confirm(payload: dict):
+    """Confirm a pending governance action"""
+    core = _require_core()
+    governance = getattr(core, "governance", None)
+    if not governance:
+        raise HTTPException(status_code=503, detail="Governance engine not available")
+    
+    audit_id = payload.get("audit_id")
+    confirmed = payload.get("confirmed", False)
+    
+    if not audit_id:
+        raise HTTPException(status_code=400, detail="audit_id required")
+    
+    if core.event_bus:
+        core.event_bus.publish("governance_confirm", {
+            "audit_id": audit_id,
+            "confirmed": confirmed,
+        })
+    
+    return {"status": "confirmed" if confirmed else "cancelled"}
+
 # ==================== CONFIGURATION ====================
 
 @router.get("/config/settings", dependencies=[Depends(verify_firebase_token)])
@@ -1150,6 +1365,30 @@ class SATURDAYCore:
             logger.warning(f"ObsidianBrainLogger init failed: {e}")
             self.obsidian_brain = None
         try:
+            self.system_control = get_system_controller(self.event_bus)
+            logger.info("System Control initialized")
+        except Exception as e:
+            logger.warning(f"SystemControl init failed: {e}")
+            self.system_control = None
+        try:
+            self.governance = get_governance_engine(self.event_bus)
+            logger.info("AI Governance Engine initialized")
+        except Exception as e:
+            logger.warning(f"AIGovernance init failed: {e}")
+            self.governance = None
+        try:
+            self.voice_handler = get_voice_handler(self.event_bus, self.real_integration)
+            logger.info("Voice Command Handler initialized")
+        except Exception as e:
+            logger.warning(f"VoiceIntegration init failed: {e}")
+            self.voice_handler = None
+        try:
+            self.real_integration = get_real_integration(self.event_bus, self.governance)
+            logger.info("Real Integration Engine initialized")
+        except Exception as e:
+            logger.warning(f"RealIntegration init failed: {e}")
+            self.real_integration = None
+        try:
             self.showtime.complete_stage("standard")
         except Exception as e:
             logger.warning(f"Showtime standard stage completion failed: {e}")
@@ -1175,6 +1414,15 @@ class SATURDAYCore:
             self.event_bus.subscribe("voice_command", lambda d: asyncio.create_task(self.voice_router.process(d.get("command", "") if isinstance(d, dict) else str(d))))
         except Exception as e:
             logger.warning(f"Voice Router initialization failed: {e}")
+        
+        # Configure assistant tool context with real_integration
+        try:
+            from core.assistant.builtins import configure_tool_context
+            configure_tool_context(real_integration=self.real_integration)
+            logger.info("Assistant tool context configured with real_integration")
+        except Exception as e:
+            logger.warning(f"Tool context configuration failed: {e}")
+        
         self.app.saturday = self
         self.cloud_bridge = None
         firebase_project_id = self._firebase_project_id()

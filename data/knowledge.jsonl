@@ -1867,3 +1867,8 @@
 {"event": "voice_response", "data": "SATURDAY: Great. I can cue some focus music if you like."}
 {"event": "voice_response", "data": "EDITH: Perimeter nominal. Want me to watch for anomalies?"}
 {"event": "voice_response", "data": "SATURDAY: Great. I can cue some focus music if you like."}
+{"event": "voice_response", "data": "SATURDAY OS online. Welcome back, Sir."}
+{"event": "voice_response", "data": "Warning: system resources high. CPU 100 percent, memory 85 percent."}
+{"event": "voice_response", "data": "SATURDAY OS online. Welcome back, Sir."}
+{"event": "voice_response", "data": "Warning: system resources high. CPU 100 percent, memory 92 percent."}
+{"event": "voice_response", "data": "Warning: system resources high. CPU 97 percent, memory 86 percent."}

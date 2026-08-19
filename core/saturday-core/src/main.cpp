@@ -636,8 +636,220 @@ int main() {
 
     AppState state;
 
-    SATURDAY_INFO("Core", "All subsystems initialized. Entering render loop.");
+    SATURDAY_INFO("Core", "All subsystems initialized. Running startup sequence...");
 
+    // ==================== STARTUP SEQUENCE ====================
+    auto startup_start = std::chrono::steady_clock::now();
+    float startup_elapsed = 0.0f;
+    const float STARTUP_DURATION = 4.0f; // seconds
+    
+    SATURDAY_INFO("Core", "Initiating SATURDAY AI OS startup sequence...");
+    
+    // Phase 1: Core initialization glow (0-1s)
+    float phase1_end = 1.0f;
+    while (startup_elapsed < phase1_end && g_running.load()) {
+        auto now = std::chrono::steady_clock::now();
+        float dt = std::chrono::duration<float>(now - startup_start).count();
+        startup_elapsed = dt;
+        
+        glfwPollEvents();
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) g_running.store(false);
+        
+        glViewport(0, 0, screen_w, screen_h);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        float t = startup_elapsed / phase1_end;
+        float pulse = 0.5f + 0.5f * std::sin(startup_elapsed * 8.0f);
+        float intensity = smooth_step(0.0f, phase1_end, startup_elapsed) * pulse;
+        
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        
+        if (edge_ok) {
+            glDisable(GL_DEPTH_TEST);
+            saturday::Color3 warm_gold(1.0f, 0.7f, 0.0f);
+            edge_glow.render(
+                startup_elapsed,
+                intensity, 0.3f, 0.1f,
+                startup_elapsed * 2.0f,
+                &warm_gold.r, &warm_gold.r,
+                0.045f + intensity * 0.02f,
+                1.0f - t * 0.3f,
+                static_cast<float>(screen_w),
+                static_cast<float>(screen_h)
+            );
+        }
+        
+        // Draw "INITIALIZING CORE..." text using points
+        glPointSize(3.0f);
+        glColor4f(1.0f, 0.7f, 0.0f, 0.8f);
+        glBegin(GL_POINTS);
+        for (int i = 0; i < 200; ++i) {
+            float angle = (i / 200.0f) * 6.28318f + startup_elapsed * 0.5f;
+            float r = 0.15f + intensity * 0.1f;
+            glVertex2f(r * std::cos(angle), r * std::sin(angle));
+        }
+        glEnd();
+        
+        glfwSwapBuffers(window);
+        
+        // Small sleep to not max CPU
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    
+    // Phase 2: Subsystem boot sequence (1-2.5s)
+    SATURDAY_INFO("Core", "Booting subsystems...");
+    float phase2_end = 2.5f;
+    while (startup_elapsed < phase2_end && g_running.load()) {
+        auto now = std::chrono::steady_clock::now();
+        float dt = std::chrono::duration<float>(now - startup_start).count();
+        startup_elapsed = dt;
+        
+        glfwPollEvents();
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) g_running.store(false);
+        
+        glViewport(0, 0, screen_w, screen_h);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        float phase2_t = (startup_elapsed - phase1_end) / (phase2_end - phase1_end);
+        
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        
+        if (edge_ok) {
+            glDisable(GL_DEPTH_TEST);
+            saturday::Color3 cyan(0.3f, 1.0f, 1.0f);
+            edge_glow.render(
+                startup_elapsed,
+                0.4f + phase2_t * 0.3f,
+                0.5f + phase2_t * 0.2f,
+                0.2f,
+                startup_elapsed * 3.0f,
+                &cyan.r, &cyan.r,
+                0.05f,
+                0.8f + phase2_t * 0.2f,
+                static_cast<float>(screen_w),
+                static_cast<float>(screen_h)
+            );
+        }
+        
+        if (orbital_ok) {
+            orbital.render(
+                startup_elapsed,
+                0.4f + phase2_t * 0.3f,
+                0.5f + phase2_t * 0.2f,
+                &cyan.r,
+                1.0f,
+                0.3f + phase2_t * 0.3f
+            );
+        }
+        
+        // Draw subsystem status rings
+        static const char* subsystems[] = {
+            "EVENT BUS", "CONFIG", "STATE", "IDENTITY", "VOICE", 
+            "VISION", "BRAIN", "ML CORE", "GOVERNANCE", "HOMEBOT"
+        };
+        int num_sub = 10;
+        for (int i = 0; i < num_sub; ++i) {
+            float angle = (i / (float)num_sub) * 6.28318f + startup_elapsed * 0.3f;
+            float r = 0.3f + 0.15f * std::sin(startup_elapsed * 2.0f + i * 0.6f);
+            float alpha = 0.3f + 0.7f * std::min(1.0f, phase2_t * num_sub / (i + 1));
+            glColor4f(0.3f, 1.0f, 1.0f, alpha);
+            glPointSize(4.0f);
+            glBegin(GL_POINTS);
+            glVertex2f(r * std::cos(angle), r * std::sin(angle));
+            glEnd();
+        }
+        
+        glfwSwapBuffers(window);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    
+    // Phase 3: AI Core activation (2.5-4s)
+    SATURDAY_INFO("Core", "Activating AI Core...");
+    float phase3_end = 4.0f;
+    while (startup_elapsed < phase3_end && g_running.load()) {
+        auto now = std::chrono::steady_clock::now();
+        float dt = std::chrono::duration<float>(now - startup_start).count();
+        startup_elapsed = dt;
+        
+        glfwPollEvents();
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) g_running.store(false);
+        
+        glViewport(0, 0, screen_w, screen_h);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        float phase3_t = (startup_elapsed - phase2_end) / (phase3_end - phase2_end);
+        
+        glMatrixMode(GL_PROJJECTION);
+        glLoadIdentity();
+        glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        
+        if (edge_ok) {
+            glDisable(GL_DEPTH_TEST);
+            saturday::Color3 gold(1.0f, 0.85f, 0.0f);
+            edge_glow.render(
+                startup_elapsed,
+                0.6f + phase3_t * 0.4f,
+                0.7f + phase3_t * 0.3f,
+                0.3f + phase3_t * 0.2f,
+                startup_elapsed * 4.0f,
+                &gold.r, &gold.r,
+                0.04f + phase3_t * 0.03f,
+                1.0f,
+                static_cast<float>(screen_w),
+                static_cast<float>(screen_h)
+            );
+        }
+        
+        if (orbital_ok) {
+            orbital.render(
+                startup_elapsed,
+                0.6f + phase3_t * 0.4f,
+                0.7f + phase3_t * 0.3f,
+                &gold.r,
+                1.0f + phase3_t * 0.5f,
+                0.4f + phase3_t * 0.3f
+            );
+        }
+        
+        // Expanding activation wave
+        for (int ring = 0; ring < 5; ++ring) {
+            float wave_t = phase3_t * 5.0f + ring * 0.2f;
+            float r = 0.1f + wave_t * 0.8f;
+            float alpha = 0.8f * (1.0f - wave_t);
+            if (alpha > 0) {
+                glColor4f(1.0f, 0.85f, 0.0f, alpha);
+                glLineWidth(2.0f + ring * 0.5f);
+                glBegin(GL_LINE_LOOP);
+                for (int i = 0; i < 100; ++i) {
+                    float a = (i / 100.0f) * 6.28318f;
+                    glVertex2f(r * std::cos(a), r * std::sin(a));
+                }
+                glEnd();
+            }
+        }
+        
+        glfwSwapBuffers(window);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    
+    SATURDAY_INFO("Core", "Startup sequence complete. SATURDAY AI OS online.");
+    state.set_state(saturday::AIState::Idle);
+    
+    // ==================== END STARTUP SEQUENCE ====================
+    
     auto last_time = std::chrono::steady_clock::now();
     float elapsed = 0.0f;
     int frame_count = 0;

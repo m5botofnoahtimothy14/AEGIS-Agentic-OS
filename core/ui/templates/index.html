@@ -949,6 +949,7 @@
         <button class="nav-tab" data-page="logs">Logs</button>
         <button class="nav-tab" data-page="homebot">HomeBot</button>
         <button class="nav-tab" data-page="music">Music</button>
+        <button class="nav-tab" data-page="brain">Brain</button>
         <button class="nav-tab" data-page="controls">Controls</button>
     </nav>
 
@@ -1436,6 +1437,63 @@
                     </div>
                     <div class="panel-content">
                         <div id="playlist-container" class="grid-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-brain">
+            <div class="panel" style="margin-bottom: 1rem;">
+                <div class="panel-header">
+                    <h2>SATURDAY Brain — Obsidian Vault</h2>
+                    <button class="btn btn-primary" onclick="refreshBrain()">🔄 Refresh</button>
+                </div>
+                <div class="panel-content">
+                    <div class="grid-4" style="margin-bottom: 1rem;">
+                        <div class="stat-card">
+                            <div class="value" id="brain-conversations">0</div>
+                            <div class="label">Conversations</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value" id="brain-thoughts">0</div>
+                            <div class="label">Thoughts</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value" id="brain-logic">0</div>
+                            <div class="label">Logic Chains</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value" id="brain-vault-size">--</div>
+                            <div class="label">Vault Size</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="openVault()">📂 Open in Obsidian</button>
+                        <button class="btn" onclick="exportBrain()">📥 Export All</button>
+                    </div>
+                    <div class="panel" style="margin-bottom: 1rem;">
+                        <div class="panel-header">
+                            <h2>Recent Conversations</h2>
+                        </div>
+                        <div class="panel-content">
+                            <div class="log-stream" id="brain-conversations-log" style="height: 200px;"></div>
+                        </div>
+                    </div>
+                    <div class="panel" style="margin-bottom: 1rem;">
+                        <div class="panel-header">
+                            <h2>Recent Thinking</h2>
+                        </div>
+                        <div class="panel-content">
+                            <div class="log-stream" id="brain-thinking-log" style="height: 200px;"></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Logic Chains</h2>
+                        </div>
+                        <div class="panel-content">
+                            <div class="log-stream" id="brain-logic-log" style="height: 200px;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3078,6 +3136,89 @@
         setInterval(refreshHomebotStatus, 5000);
         refreshHomebotStatus();
         loadPlaylists();
+        loadBrain();
+
+        // Brain functions
+        async function loadBrain() {
+            try {
+                const res = await fetch('/api/brain/stats');
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('brain-conversations').textContent = data.conversations || 0;
+                    document.getElementById('brain-thoughts').textContent = data.thoughts || 0;
+                    document.getElementById('brain-logic').textContent = data.logic_chains || 0;
+                    document.getElementById('brain-vault-size').textContent = formatBytes(data.vault_size || 0);
+                }
+            } catch (err) {}
+            await loadBrainConversations();
+            await loadBrainThinking();
+            await loadBrainLogic();
+        }
+        
+        async function loadBrainConversations() {
+            try {
+                const res = await fetch('/api/brain/conversations?limit=20');
+                const data = await res.json();
+                if (data.success) {
+                    const logDiv = document.getElementById('brain-conversations-log');
+                    logDiv.innerHTML = (data.conversations || []).slice().reverse().map(c => 
+                        `<div class="log-entry"><span class="log-time">${new Date(c.iso_time).toLocaleTimeString()}</span><span class="log-level ${c.role.includes('user') ? 'info' : 'info'}">${c.role}</span>${c.text.substring(0, 120)}${c.text.length > 120 ? '...' : ''}</div>`
+                    ).join('');
+                }
+            } catch (err) {}
+        }
+        
+        async function loadBrainThinking() {
+            try {
+                const res = await fetch('/api/brain/thinking?limit=20');
+                const data = await res.json();
+                if (data.success) {
+                    const logDiv = document.getElementById('brain-thinking-log');
+                    logDiv.innerHTML = (data.thinking || []).slice().reverse().map(t => 
+                        `<div class="log-entry"><span class="log-time">${new Date(t.iso_time).toLocaleTimeString()}</span><span class="log-level info">THOUGHT</span>${t.thought.substring(0, 120)}${t.thought.length > 120 ? '...' : ''}</div>`
+                    ).join('');
+                }
+            } catch (err) {}
+        }
+        
+        async function loadBrainLogic() {
+            try {
+                const res = await fetch('/api/brain/logic?limit=10');
+                const data = await res.json();
+                if (data.success) {
+                    const logDiv = document.getElementById('brain-logic-log');
+                    logDiv.innerHTML = (data.logic || []).slice().reverse().map(l => 
+                        `<div class="log-entry"><span class="log-time">${new Date(l.iso_time).toLocaleTimeString()}</span><span class="log-level warn">LOGIC</span>${l.conclusion} (${(l.confidence*100).toFixed(0)}%)</div>`
+                    ).join('');
+                }
+            } catch (err) {}
+        }
+        
+        async function refreshBrain() {
+            await loadBrain();
+            addLog('Brain data refreshed', 'info', 'brain');
+        }
+        
+        async function openVault() {
+            try {
+                await fetch('/api/brain/open-vault', {method: 'POST'});
+                addLog('Opening Obsidian vault...', 'info', 'brain');
+            } catch (err) {
+                addLog('Failed to open vault', 'error', 'brain');
+            }
+        }
+        
+        async function exportBrain() {
+            try {
+                const res = await fetch('/api/brain/export');
+                const data = await res.json();
+                if (data.success) {
+                    addLog('Brain export complete', 'info', 'brain');
+                }
+            } catch (err) {
+                addLog('Export failed', 'error', 'brain');
+            }
+        }
 
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
