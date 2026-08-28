@@ -15,6 +15,7 @@ import time
 import logging
 import numpy as np
 import importlib
+import threading
 from pathlib import Path
 from threading import Thread
 from fastapi import FastAPI, Request, WebSocket, APIRouter, HTTPException, Depends
@@ -92,6 +93,7 @@ AlertManager = _optional_import("core.alert_manager", "AlertManager", _Unavailab
 LinkedBrain = _optional_import("core.brain", "LinkedBrain", _UnavailableDependency)
 GreetingManager = _optional_import("core.greeting", "GreetingManager", _UnavailableDependency)
 SpatialAudioEngine = _optional_import("core.spatial_audio", "SpatialAudioEngine", _UnavailableDependency)
+VisualOverlayManager = _optional_import("core.visual_overlay", "VisualOverlayManager", _UnavailableDependency)
 from core.agent_service import create_agent_app
 from core.task_manager import TaskManager
 from core.persona import get_persona_manager
@@ -940,11 +942,17 @@ class LightweightSATURDAYCore:
 async def startup_event():
     global _saturday_core
     if _saturday_core is None:
-        try:
-            _saturday_core = SATURDAYCore()
-        except Exception as exc:
-            logger.warning("Full SATURDAY core initialization failed; falling back to lightweight mode: %s", exc)
-            _saturday_core = LightweightSATURDAYCore()
+        # Build the full core in a background thread so uvicorn starts serving
+        # HTTP immediately (fast API response). Endpoints return 503 until the
+        # core is ready (handled by _require_core / early_healthcheck).
+        def _build_core():
+            global _saturday_core
+            try:
+                _saturday_core = SATURDAYCore()
+            except Exception as exc:
+                logger.warning("Full SATURDAY core initialization failed; falling back to lightweight mode: %s", exc)
+                _saturday_core = LightweightSATURDAYCore()
+        threading.Thread(target=_build_core, daemon=True).start()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -1119,6 +1127,15 @@ class SATURDAYCore:
         except Exception as e:
             logger.warning(f"SpatialAudioEngine init failed: {e}")
             self.spatial_audio = None
+        self.visual_overlay = None
+        try:
+            if VisualOverlayManager and not isinstance(VisualOverlayManager, type(_UnavailableDependency)):
+                self.visual_overlay = VisualOverlayManager(self.event_bus)
+                self.visual_overlay.start()
+                logger.info("Visual overlay subprocess started")
+        except Exception as e:
+            logger.warning(f"VisualOverlay init failed: {e}")
+            self.visual_overlay = None
         try:
             self.task_manager = TaskManager(self.event_bus)
         except Exception as e:
@@ -1456,6 +1473,13 @@ class SATURDAYCore:
         self.event_bus.subscribe("rewrite_suggestion", _ws_forward("rewrite_suggestion"))
         self.event_bus.subscribe("homebot_telemetry", _ws_forward("homebot_telemetry"))
         self._emit_startup_greeting()
+        if self.visual_overlay:
+            self.visual_overlay.flash(color=(0, 255, 170), alpha=0.7, duration_ms=1200)
+            self.visual_overlay.set_state("startup", 0.9)
+        if self.spatial_audio:
+            self.spatial_audio.play_startup_chime()
+        if self.greet:
+            asyncio.create_task(self.greet.greet_user("admin"))
         logger.info("SATURDAY Core initialized successfully")
     def _firebase_project_id(self) -> str:
         return (

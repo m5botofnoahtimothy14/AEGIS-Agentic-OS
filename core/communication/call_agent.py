@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Optional
 
 import structlog
-from livekit import api
+try:
+    from livekit import api
+except (ImportError, AttributeError):
+    api = None
 
 logger = structlog.get_logger("SATURDAY.CallAgent")
 

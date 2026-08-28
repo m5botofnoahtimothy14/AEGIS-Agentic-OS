@@ -535,7 +535,18 @@ class AudioProcessor:
                 model_size = os.getenv("WHISPER_MODEL_SIZE", "tiny")
                 device = os.getenv("WHISPER_DEVICE", "cpu")
                 compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
-                
+
+                if getattr(sys, 'frozen', False):
+                    bundle_dir = os.path.dirname(sys.executable)
+                    internal_dir = os.path.join(bundle_dir, '_internal')
+                    assets_src = os.path.join(os.path.dirname(sys.executable), '_internal', 'faster_whisper', 'assets')
+                    assets_dst = os.path.join(internal_dir, 'faster_whisper', 'assets')
+                    if not os.path.exists(assets_dst) and os.path.exists(assets_src):
+                        import shutil
+                        os.makedirs(os.path.dirname(assets_dst), exist_ok=True)
+                        shutil.copytree(assets_src, assets_dst, dirs_exist_ok=True)
+                    os.environ['CT2_ASSETS_PATH'] = assets_dst
+
                 self._whisper_model = WhisperModel(model_size, device=device, compute_type=compute_type)
                 logger.info(f"Whisper model loaded: {model_size} on {device}")
             except Exception as e:
@@ -835,8 +846,8 @@ class CrossPlatformAudio:
                 self.recognizer = sr.Recognizer()
                 self.recognizer.energy_threshold = 200
                 self.recognizer.dynamic_energy_threshold = True
-                self.mic = sr.Microphone(device_index=self.mic_index, sample_rate=self.sample_rate)
-                logger.info(f"SR ready, mic: {self.mic_index}")
+                # Skip Microphone init - use sounddevice backend instead
+                logger.info(f"SR ready (sounddevice backend), mic index: {self.mic_index}")
             except Exception as e:
                 logger.warning(f"SR init failed: {e}")
     

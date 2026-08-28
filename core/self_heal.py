@@ -71,7 +71,7 @@ class HealingNeuralNetwork:
         error = expected - output
         output_delta = error
         hidden_error = self.np.dot(output_delta, self.weights2.T)
-        hidden_delta = hidden_error * self.np.relu_derivative(self.hidden)
+        hidden_delta = hidden_error * self.relu_derivative(self.hidden)
         # Use outer products so the update matrices have the correct shapes
         # regardless of whether features/hidden are 1-D or 2-D.
         self.weights2 += 0.01 * self.np.outer(self.hidden, output_delta)

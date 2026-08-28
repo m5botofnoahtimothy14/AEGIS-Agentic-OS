@@ -54,13 +54,18 @@ class SpatialAudioEngine:
     def play_tonal_alert(self, azimuth_deg: float = 0.0, distance: float = 1.0,
                          freq: float = 880.0, duration: float = 0.3):
         
-        logger.debug("Alert tone suppressed (muted).")
-        return
+        tone = self._sine_tone(freq, duration, amplitude=0.3)
+        stereo = self._pan_stereo(tone, azimuth_deg)
+        stereo = self._distance_attenuation(stereo, distance)
+        self._play_stereo(stereo)
 
     def play_startup_chime(self):
-        
-        logger.info("Startup chime suppressed (muted).")
-        return
+        def _play():
+            for freq, dur in [(261.6, 0.12), (329.6, 0.12), (392.0, 0.12), (523.3, 0.25)]:
+                tone = self._sine_tone(freq, dur, amplitude=0.4)
+                stereo = self._pan_stereo(tone, 0.0)
+                sd.play(stereo * self.master_volume, self.sample_rate, blocking=True)
+        threading.Thread(target=_play, daemon=True).start()
 
     def set_master_volume(self, volume: float):
         self.master_volume = np.clip(volume, 0.0, 1.0)

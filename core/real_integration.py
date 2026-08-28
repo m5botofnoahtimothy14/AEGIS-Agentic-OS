@@ -1118,6 +1118,21 @@ class RealIntegrationEngine:
             msg = parts[2] if len(parts) > 2 else command
             return self.notify(title, msg)
 
+        if any(w in c for w in ["weather", "forecast", "temperature outside", "is it raining"]):
+            location = ""
+            import re as _re
+            m = _re.search(
+                r"(?:weather|forecast|temperature|how(?:'s| is))\s+(?:in |for |at )?(.+?)(?:\?|$)",
+                c, _re.IGNORECASE,
+            )
+            if m:
+                location = m.group(1).strip()
+            try:
+                from core.services.weather_service import WeatherService
+                return WeatherService().get_current_weather(location)
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
         # Fallback: execute as shell command
         return self.execute(command)
 

@@ -71,11 +71,11 @@ class ImprovementNeuralNetwork:
         error = expected - output
         output_delta = error
         hidden_error = self.np.dot(output_delta, self.weights2.T)
-        hidden_delta = hidden_error * self.np.relu_derivative(self.hidden)
-        self.weights2 += 0.01 * self.np.dot(self.hidden.T, output_delta)
-        self.weights1 += 0.01 * self.np.dot(features.T, hidden_delta)
+        hidden_delta = hidden_error * self.relu_derivative(self.hidden)
+        self.weights2 += 0.01 * self.np.outer(self.np.ravel(self.hidden), output_delta)
+        self.weights1 += 0.01 * self.np.outer(self.np.ravel(features), hidden_delta)
         self.bias2 += 0.01 * output_delta
-        self.bias1 += 0.01 * hidden_delta
+        self.bias1 += 0.01 * self.np.ravel(hidden_delta)
 
 
 class SelfRewriteAdvisor:

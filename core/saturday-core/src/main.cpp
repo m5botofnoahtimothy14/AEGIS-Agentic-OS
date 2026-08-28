@@ -724,9 +724,10 @@ int main() {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         
+        saturday::Color3 cyan(0.3f, 1.0f, 1.0f);
+        
         if (edge_ok) {
             glDisable(GL_DEPTH_TEST);
-            saturday::Color3 cyan(0.3f, 1.0f, 1.0f);
             edge_glow.render(
                 startup_elapsed,
                 0.4f + phase2_t * 0.3f,
@@ -790,15 +791,16 @@ int main() {
         
         float phase3_t = (startup_elapsed - phase2_end) / (phase3_end - phase2_end);
         
-        glMatrixMode(GL_PROJJECTION);
+        glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         
+        saturday::Color3 gold(1.0f, 0.85f, 0.0f);
+        
         if (edge_ok) {
             glDisable(GL_DEPTH_TEST);
-            saturday::Color3 gold(1.0f, 0.85f, 0.0f);
             edge_glow.render(
                 startup_elapsed,
                 0.6f + phase3_t * 0.4f,

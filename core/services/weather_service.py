@@ -94,6 +94,27 @@ class WeatherService:
                 "longitude": float(self.default_longitude),
             }
 
+        return self._geoip_fallback()
+
+    def _geoip_fallback(self) -> dict:
+        for url, extract in (
+            ("https://ipwho.is/", lambda d: (d.get("latitude"), d.get("longitude"), d.get("city", d.get("region", "your location")))),
+            ("https://freeipapi.com/api/json", lambda d: (d.get("latitude"), d.get("longitude"), d.get("countryName", "your location"))),
+            ("https://ipinfo.io/json", lambda d: (
+                *(float(x) for x in d.get("loc", "0,0").split(",")),
+                d.get("city", d.get("region", "your location")),
+            )),
+        ):
+            try:
+                resp = requests.get(url, timeout=5)
+                resp.raise_for_status()
+                data = resp.json()
+                lat, lon, name = extract(data)
+                if lat is not None and lon is not None:
+                    return {"name": name, "latitude": float(lat), "longitude": float(lon)}
+            except Exception:
+                continue
         raise RuntimeError(
-            "Weather location is not configured. Set SATURDAY_LATITUDE and SATURDAY_LONGITUDE or ask for a specific place."
+            "Weather location is not configured and IP geolocation failed. "
+            "Set SATURDAY_LATITUDE and SATURDAY_LONGITUDE or ask for a specific place."
         )

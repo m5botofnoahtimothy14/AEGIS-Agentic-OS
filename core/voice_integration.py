@@ -3,6 +3,7 @@ SATURDAY 3.0 -- Voice Command Handler with Real Integration Engine
 Wires all 72+ capabilities through AI governance.
 """
 import logging
+import re
 import json
 import time
 from typing import Dict, Any, Optional
@@ -121,6 +122,8 @@ class VoiceCommandHandler:
             "zip_directory": lambda p: self.real.zip_directory(p.get("src", ""), p.get("dest", "")),
             "unzip": lambda p: self.real.unzip(p.get("src", ""), p.get("dest", "")),
             "file_permissions": lambda p: self.real.file_permissions(p.get("path", "")),
+            # Weather
+            "weather": lambda p: self._handle_weather(p),
             # Legacy (system_control)
             "open_file": lambda p: self.system.open_file(p.get("path", "")),
             "open_folder": lambda p: self.system.open_folder(p.get("path", "")),
@@ -134,6 +137,23 @@ class VoiceCommandHandler:
     def _handle_governance_confirm(self, data: Dict):
         if self.event_bus:
             self.event_bus.publish("governance_confirm", data)
+
+    def _handle_weather(self, params: Dict) -> Dict:
+        location = params.get("location", "")
+        if not location:
+            raw = params.get("_raw", "")
+            m = re.search(
+                r"(?:weather|forecast|temperature|how(?:'s| is))\s+(?:in |for |at )?(.+?)(?:\?|$)",
+                raw, re.IGNORECASE,
+            )
+            if m:
+                location = m.group(1).strip()
+        try:
+            from core.services.weather_service import WeatherService
+            ws = WeatherService()
+            return ws.get_current_weather(location)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def handle_command(self, data: Any) -> Dict[str, Any]:
         """Main entry point for voice/text commands."""

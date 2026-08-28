@@ -63,21 +63,49 @@ class NeuralNetwork:
         return output
     
     def backward(self, inputs: np.ndarray, expected: np.ndarray, learning_rate: float = 0.01):
+        inputs = np.asarray(inputs, dtype=float)
+        expected = np.asarray(expected, dtype=float)
+        single = inputs.ndim == 1
+        if single:
+            inputs = inputs.reshape(1, -1)
+            expected = expected.reshape(1, -1)
+        while inputs.ndim > 2:
+            inputs = inputs.reshape(inputs.shape[0], -1)
         output = self.forward(inputs)
         error = expected - output
-        
+
         output_delta = error
         hidden_error = np.dot(output_delta, self.weights2.T)
         hidden_delta = hidden_error * self.relu_derivative(self.hidden)
-        
+
         self.weights2 += learning_rate * np.dot(self.hidden.T, output_delta)
         self.weights1 += learning_rate * np.dot(inputs.T, hidden_delta)
-        self.bias2 += learning_rate * output_delta
-        self.bias1 += learning_rate * hidden_delta
-        
-        return np.mean(np.abs(error))
+        self.bias2 += learning_rate * np.sum(output_delta, axis=0)
+        self.bias1 += learning_rate * np.sum(hidden_delta, axis=0)
+
+        return float(np.mean(np.abs(error)))
     
     def train(self, inputs: np.ndarray, expected: np.ndarray, epochs: int = 100, learning_rate: float = 0.01):
+        single = inputs.ndim == 1
+        inputs = np.asarray(inputs, dtype=float)
+        if single:
+            inputs = inputs.reshape(1, -1)
+            expected = np.asarray(expected).reshape(1, -1)
+        # Flatten a 3-D batch (n,1,features) into (n,features).
+        while inputs.ndim > 2:
+            inputs = inputs.reshape(inputs.shape[0], -1)
+        n = inputs.shape[0]
+        # Normalize expected targets to a proper one-hot over output classes so
+        # they are always compatible with this softmax classifier (prevents the
+        # recurring "operands could not be broadcast together" crash).
+        expected = np.asarray(expected).reshape(n, -1)
+        if expected.shape[1] != self.output_size:
+            onehot = np.zeros((n, self.output_size))
+            for i in range(n):
+                val = float(expected[i].max())
+                idx = int(round(val * (self.output_size - 1)))
+                onehot[i, min(max(idx, 0), self.output_size - 1)] = 1.0
+            expected = onehot
         for _ in range(epochs):
             self.backward(inputs, expected, learning_rate)
 

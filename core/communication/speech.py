@@ -156,22 +156,19 @@ class SpeechManager:
 
             if os.path.exists(tmp_path) and sd:
                 try:
-                    import subprocess
-                    wav_path = tmp_path.replace(".mp3", ".wav")
-                    subprocess.run(
-                        ["ffmpeg", "-y", "-i", tmp_path, "-ar", "24000", "-ac", "1", wav_path],
-                        capture_output=True,
-                        timeout=10,
-                    )
-                    if os.path.exists(wav_path):
-                        audio_data, sr = self._load_wav(wav_path)
-                        sd.play(audio_data, sr)
-                        sd.wait()
-                        os.remove(wav_path)
-                    else:
-                        self._speak_fallback(text)
+                    import miniaudio
+                    with open(tmp_path, "rb") as fh:
+                        decoded = miniaudio.decode_file(tmp_path, output_format=miniaudio.SampleFormat.FLOAT32)
+                    audio_data = np.asarray(decoded.samples, dtype=np.float32)
+                    if audio_data.ndim > 1 and audio_data.shape[1] > 1:
+                        audio_data = audio_data.mean(axis=1)
+                    sd.play(audio_data, decoded.sample_rate)
+                    sd.wait()
                 except Exception:
-                    self._speak_fallback(text)
+                    try:
+                        self._speak_fallback(text)
+                    except Exception:
+                        pass
                 finally:
                     try:
                         os.remove(tmp_path)

@@ -2,6 +2,18 @@
 """SATURDAY AI OS - Main Launcher for PyInstaller Bundle"""
 import sys
 import os
+
+# Overlay child mode: run the visual overlay and exit
+if "--overlay-child" in sys.argv:
+    from core.visual_overlay import VisualOverlay
+    if getattr(sys, 'frozen', False):
+        INTERNAL_DIR = os.path.join(os.path.dirname(sys.executable), '_internal')
+        os.chdir(INTERNAL_DIR)
+        sys.path.insert(0, INTERNAL_DIR)
+        sys.path.insert(0, os.path.join(INTERNAL_DIR, 'core'))
+    VisualOverlay().start()
+    sys.exit(0)
+
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 

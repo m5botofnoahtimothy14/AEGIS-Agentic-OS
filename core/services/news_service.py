@@ -49,7 +49,7 @@ class NewsService:
                 response.raise_for_status()
                 collected.extend(self._parse_feed(response.text))
             except Exception as e:
-                logger.warning("News feed fetch failed", feed_url=feed_url, error=str(e))
+                logger.warning("News feed fetch failed", extra={"feed_url": feed_url, "error": str(e)})
         unique = []
         seen = set()
         for headline in collected:

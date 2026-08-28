@@ -50,6 +50,10 @@ class SubsystemNeuralNetwork:
         return output
     
     def train(self, X: np.ndarray, y: np.ndarray, epochs: int = 20, lr: float = 0.01):
+        single = X.ndim == 1
+        if single:
+            X = X.reshape(1, -1)
+            y = y.reshape(1, -1)
         for _ in range(epochs):
             output = self.forward(X)
             error = y - output
@@ -60,8 +64,8 @@ class SubsystemNeuralNetwork:
             
             self.weights2 += lr * np.dot(self.hidden.T, output_delta)
             self.weights1 += lr * np.dot(X.T, hidden_delta)
-            self.bias2 += lr * output_delta
-            self.bias1 += lr * hidden_delta
+            self.bias2 += lr * np.sum(output_delta, axis=0)
+            self.bias1 += lr * np.sum(hidden_delta, axis=0)
     
     def add_experience(self, features: np.ndarray, label: int):
         self.training_buffer.append((features, label))

@@ -325,8 +325,8 @@ class NLPEngine:
         hidden_error = np.dot(output_delta, self.decision_nn.weights2.T)
         hidden_delta = hidden_error * (self.decision_nn.hidden > 0).astype(float)
         
-        self.decision_nn.weights2 += 0.01 * np.dot(self.decision_nn.hidden.T, output_delta)
-        self.decision_nn.weights1 += 0.01 * np.dot(features.T, hidden_delta)
+        self.decision_nn.weights2 += 0.01 * np.outer(self.decision_nn.hidden, output_delta)
+        self.decision_nn.weights1 += 0.01 * np.outer(features, hidden_delta)
         self.decision_nn.bias2 += 0.01 * output_delta
         self.decision_nn.bias1 += 0.01 * hidden_delta
         
