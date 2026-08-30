@@ -157,11 +157,21 @@ class SpeechManager:
             if os.path.exists(tmp_path) and sd:
                 try:
                     import miniaudio
-                    with open(tmp_path, "rb") as fh:
-                        decoded = miniaudio.decode_file(tmp_path, output_format=miniaudio.SampleFormat.FLOAT32)
+                    decoded = miniaudio.decode_file(tmp_path, output_format=miniaudio.SampleFormat.FLOAT32)
+                    # decoded.samples is flat interleaved; reshape to (frames, channels)
                     audio_data = np.asarray(decoded.samples, dtype=np.float32)
-                    if audio_data.ndim > 1 and audio_data.shape[1] > 1:
-                        audio_data = audio_data.mean(axis=1)
+                    if decoded.nchannels > 1:
+                        try:
+                            audio_data = audio_data.reshape(-1, decoded.nchannels)
+                        except Exception:
+                            pass
+                        # Play stereo directly if 2ch, or mix to mono
+                        # sounddevice handles (frames, channels) - keep as 2D for stereo
+                        if audio_data.ndim == 2 and audio_data.shape[1] == 2:
+                            # Keep stereo - sounddevice will play correctly
+                            pass
+                        elif audio_data.ndim == 2:
+                            audio_data = audio_data.mean(axis=1)
                     sd.play(audio_data, decoded.sample_rate)
                     sd.wait()
                 except Exception:

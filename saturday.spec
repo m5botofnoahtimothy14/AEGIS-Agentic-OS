@@ -154,6 +154,8 @@ a = Analysis(
         'deep_learning.patterns',
         'deep_learning.evolution',
         'deep_learning.backend',
+        # Demo showcase (autonomous feature tour)
+        'core.demo_showcase',
         # Communication
         'communication.speech',
         'communication.call_agent',

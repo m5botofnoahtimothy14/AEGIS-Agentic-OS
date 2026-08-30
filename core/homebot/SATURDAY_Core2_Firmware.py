@@ -1,4 +1,4 @@
-﻿                                                     
+                                                     
 WIFI_SSID = "CHANGE_ME"
 WIFI_PASSWORD = "CHANGE_ME"
 
@@ -21,6 +21,9 @@ M_BR = 33
 ULTRASONIC_TRIG = 23
 ULTRASONIC_ECHO = 22
 VIBRATION_PIN = 34
+LINE_L_PIN = 36
+LINE_C_PIN = 0
+LINE_R_PIN = 35
 
 SENSOR_INTERVAL = 2
 MOTOR_TIMEOUT = 10
@@ -58,6 +61,7 @@ class DLCore:
         features = self._extract_features(sensor_data)
         distance = sensor_data.get("distance", 100)
         vibration = sensor_data.get("vibration", 0)
+        line = sensor_data.get("line", 0)
         
         if distance < OBSTACLE_THRESHOLD:
             self.anomaly_score = 0.9
@@ -68,6 +72,14 @@ class DLCore:
             self.anomaly_score = 0.8
             self.confidence = 0.88
             return {"action": "alert", "type": "anomaly", "confidence": self.confidence, "emotion": "alert"}
+
+        # Line follow: bitmask 0b100=left, 010=center, 001=right
+        if line & 0b010:
+            return {"action": "line_forward", "confidence": 0.92, "emotion": "happy"}
+        elif line & 0b100:
+            return {"action": "line_left", "confidence": 0.9, "emotion": "thinking"}
+        elif line & 0b001:
+            return {"action": "line_right", "confidence": 0.9, "emotion": "thinking"}
         
         self.anomaly_score = max(0.0, self.anomaly_score - 0.05)
         self.confidence = 0.7 + (self.anomaly_score * 0.3)
@@ -77,7 +89,8 @@ class DLCore:
         return [
             data.get("distance", 0) / 400.0,
             data.get("vibration", 0) / 4095.0,
-            data.get("rssi", -100) / -30.0
+            data.get("rssi", -100) / -30.0,
+            data.get("line", 0) / 7.0
         ]
     
     def learn(self, sensor_data, action_taken):
@@ -216,7 +229,14 @@ class Sensors:
         self.trig = Pin(ULTRASONIC_TRIG, Pin.OUT)
         self.echo = Pin(ULTRASONIC_ECHO, Pin.IN)
         self.vib = ADC(Pin(VIBRATION_PIN))
-        print("[SENSORS] Ready")
+        try:
+            self.line_l = Pin(LINE_L_PIN, Pin.IN)
+            self.line_c = Pin(LINE_C_PIN, Pin.IN)
+            self.line_r = Pin(LINE_R_PIN, Pin.IN)
+            self.has_line = True
+        except:
+            self.has_line = False
+        print("[SENSORS] Ready" + (" + Line" if self.has_line else ""))
     
     def ultrasonic(self):
         import time
@@ -244,7 +264,19 @@ class Sensors:
             return self.vib.read()
         except:
             return 0
-    
+
+    def line_sensors(self):
+        if not self.has_line:
+            return 0
+        try:
+            l = self.line_l.value()
+            c = self.line_c.value()
+            r = self.line_r.value()
+            # Bitmask 0-7, 0=white, 1=black line
+            return (l<<2)|(c<<1)|r
+        except:
+            return 0
+
     def wifi_rssi(self, wlan):
         try:
             if wlan and wlan.isconnected():
@@ -257,7 +289,8 @@ class Sensors:
         d = self.ultrasonic()
         v = self.vibration()
         r = self.wifi_rssi(None)
-        return {"distance": d, "vibration": v, "rssi": r}
+        line = self.line_sensors()
+        return {"distance": d, "vibration": v, "rssi": r, "line": line}
 
 class SpeechEngine:
     def __init__(self):
@@ -583,6 +616,16 @@ class Navigator:
             self.motors.stop()
             time.sleep_ms(200)
             self.motors.set_all({"FL": -50, "FR": 50, "BL": -50, "BR": 50})
+            time.sleep_ms(400)
+            self.motors.stop()
+        elif action == "line_forward":
+            self.motors.omni(0, 60, 0)
+        elif action == "line_left":
+            self.motors.omni(-40, 30, 0)
+            time.sleep_ms(120)
+        elif action == "line_right":
+            self.motors.omni(40, 30, 0)
+            time.sleep_ms(120)
         elif action == "alert":
             print("[NAV] Anomaly detected!")
         

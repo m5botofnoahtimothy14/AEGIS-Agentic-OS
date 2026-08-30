@@ -258,6 +258,34 @@ class MicBackend:
             if not self._devices:
                 return False
             
+            # Intensity-based selection: briefly sample each mic for RMS level
+            # and pick the most responsive one (strongest live signal), falling
+            # back to name-preference/default if sampling is unavailable.
+            best_mic = None
+            best_rms = -1.0
+            sampled = False
+            if SD_AVAILABLE and len(self._devices) > 1:
+                for idx, mic in self._devices.items():
+                    try:
+                        import sounddevice as _sd
+                        import numpy as _np
+                        sr = mic.sample_rate or 16000
+                        ch = min(mic.channels or 1, 2)
+                        rec = _sd.rec(int(0.5 * sr), samplerate=sr, channels=ch, dtype='float32', device=idx)
+                        _sd.wait()
+                        rms = float(_np.sqrt(_np.mean(rec.astype(_np.float32) ** 2)))
+                        # Prefer mics that actually hear ambient noise over dead ones.
+                        if rms > best_rms:
+                            best_rms = rms
+                            best_mic = mic
+                        sampled = True
+                    except Exception:
+                        continue
+                if sampled and best_mic is not None and best_rms > 1e-6:
+                    self._current_device = best_mic
+                    logger.info(f"Auto-selected by intensity (RMS={best_rms:.4f}): {best_mic}")
+                    return True
+            
             preferred_names = ['array', 'realtek', 'built-in', 'usb', 'headset', 'bluetooth']
             
             for pref in preferred_names:

@@ -122,6 +122,9 @@ class VoiceCommandHandler:
             "zip_directory": lambda p: self.real.zip_directory(p.get("src", ""), p.get("dest", "")),
             "unzip": lambda p: self.real.unzip(p.get("src", ""), p.get("dest", "")),
             "file_permissions": lambda p: self.real.file_permissions(p.get("path", "")),
+            # Demo showcase (autonomous)
+            "demo_showcase": lambda p: self._handle_demo(p),
+            "demo": lambda p: self._handle_demo(p),
             # Weather
             "weather": lambda p: self._handle_weather(p),
             # Legacy (system_control)
@@ -137,6 +140,14 @@ class VoiceCommandHandler:
     def _handle_governance_confirm(self, data: Dict):
         if self.event_bus:
             self.event_bus.publish("governance_confirm", data)
+
+    def _handle_demo(self, params: Dict) -> Dict:
+        try:
+            if self.event_bus:
+                self.event_bus.publish("demo_showcase", params or {"source": "voice"})
+            return {"success": True, "message": "Autonomous demo started — SATURDAY will speak and act through each feature now. Watch the overlay flash, mouse move, and listen to each feature."}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def _handle_weather(self, params: Dict) -> Dict:
         location = params.get("location", "")

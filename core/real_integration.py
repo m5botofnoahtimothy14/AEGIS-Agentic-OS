@@ -1118,6 +1118,14 @@ class RealIntegrationEngine:
             msg = parts[2] if len(parts) > 2 else command
             return self.notify(title, msg)
 
+        if any(w in c for w in ["demo", "showcase", "autonomous demo", "show me what you can do", "what can you do"]):
+            try:
+                if self.event_bus:
+                    self.event_bus.publish("demo_showcase", {"source": "real"})
+                return {"success": True, "message": "Autonomous demo started — watch overlay, mouse, and listen."}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
         if any(w in c for w in ["weather", "forecast", "temperature outside", "is it raining"]):
             location = ""
             import re as _re

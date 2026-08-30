@@ -52,7 +52,7 @@ class VisualOverlay:
         self._speaking_bars = []
         self._width = 1920
         self._height = 1080
-        self._border_width = 80
+        self._border_width = 140
 
     def start(self):
         self._root = tk.Tk()
@@ -82,8 +82,17 @@ class VisualOverlay:
         sw = root.winfo_screenwidth()
         sh = root.winfo_screenheight()
         self._width, self._height = sw, sh
+        # Ensure DPI awareness so Intel Iris scales correctly
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except: pass
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except: pass
         root.overrideredirect(True)
         root.attributes("-topmost", True)
+        # Keep main canvas transparent for center orb/bars, but also create 4 solid edge windows
+        # that are guaranteed visible over all apps on Intel Iris (no WS_EX_TRANSPARENT for edges)
         root.attributes("-alpha", 1.0)
         root.configure(bg="black")
         root.geometry(f"{sw}x{sh}+0+0")
@@ -91,17 +100,85 @@ class VisualOverlay:
             import ctypes
             root.update_idletasks()
             hwnd = root.winfo_id()
+            # Main window: layered + transparent for center, but edges will be separate solid windows
             GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW = -20, 0x00080000, 0x00000020, 0x00000080
             s = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
             ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, s | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW)
             root.attributes("-transparentcolor", "black")
-            logger.info(f"Overlay ready {sw}x{sh} HWND={hwnd}")
+            # Force topmost via Win32 as well (Intel DWM)
+            ctypes.windll.user32.SetWindowPos(hwnd, -1, 0,0,0,0, 0x0001|0x0002)
+            logger.info(f"Overlay ready {sw}x{sh} HWND={hwnd} Intel Iris")
         except Exception as e:
             logger.warning(f"Click-through setup: {e}")
             try:
                 root.attributes("-transparentcolor", "black")
             except Exception:
                 pass
+        # Gradient bar overlay like uploaded images - bottom center pill/bar with RGB wave
+        # Auto-detect screen via Win32 on Intel Iris
+        try:
+            sw = ctypes.windll.user32.GetSystemMetrics(0)
+            sh = ctypes.windll.user32.GetSystemMetrics(1)
+            self._width, self._height = sw, sh
+        except: pass
+        # Premium capsule: 720x44 deep charcoal #131314, glass, fluid, high-tech
+        self._bar_w, self._bar_h = 720, 44
+        self._bar_x, self._bar_y = (sw - self._bar_w)//2, sh - self._bar_h - 32
+        self._bar_win = None
+        self._bar_canvas = None
+        try:
+            bw = tk.Toplevel(root)
+            bw.overrideredirect(True)
+            bw.attributes("-topmost", True)
+            bw.attributes("-alpha", 0.97)
+            bw.configure(bg="#000000")
+            bw.geometry(f"{self._bar_w}x{self._bar_h}+{self._bar_x}+{self._bar_y}")
+            try:
+                hw = bw.winfo_id()
+                # DWM: extend frame for glass, make it fluid over Intel Iris
+                ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hw, ctypes.byref(ctypes.c_int(0)))
+                ctypes.windll.user32.SetWindowPos(hw, -1, 0,0,0,0, 0x0001|0x0002|0x0010)
+            except: 
+                try: ctypes.windll.user32.SetWindowPos(bw.winfo_id(), -1, 0,0,0,0, 0x0001|0x0002)
+                except: pass
+            self._bar_win = bw
+            self._bar_canvas = tk.Canvas(bw, width=self._bar_w, height=self._bar_h, bg="#000000", highlightthickness=0)
+            self._bar_canvas.pack(fill="both", expand=True)
+            def _on_display_change(e=None):
+                try:
+                    ns = ctypes.windll.user32.GetSystemMetrics(0)
+                    nsh = ctypes.windll.user32.GetSystemMetrics(1)
+                    if ns != self._width or nsh != self._height:
+                        self._width, self._height = ns, nsh
+                        self._bar_x, self._bar_y = (ns - self._bar_w)//2, nsh - self._bar_h - 28
+                        self._bar_win.geometry(f"{self._bar_w}x{self._bar_h}+{self._bar_x}+{self._bar_y}")
+                        root.geometry(f"{ns}x{nsh}+0+0")
+                        logger.info(f"Gradient bar auto-adjusted to {ns}x{nsh}")
+                except: pass
+            root.bind("<Configure>", _on_display_change)
+            logger.info(f"Gradient bar {self._bar_w}x{self._bar_h} at {self._bar_x},{self._bar_y} for {sw}x{sh} Intel Iris")
+        except Exception as e:
+            logger.warning(f"Gradient bar failed: {e}")
+            self._bar_win = None
+        # Premium edge lighting: 4 thin aurora strips (6px) with high blur, fluid wave — over all apps on Intel Iris
+        self._edge_wins = []
+        self._edge_canvases = []
+        try:
+            geoms = [f"{sw}x6+0+0", f"{sw}x6+0+{sh-6}", f"6x{sh}+0+0", f"6x{sh}+{sw-6}+0"]
+            for geom in geoms:
+                w = tk.Toplevel(root)
+                w.overrideredirect(True)
+                w.attributes("-topmost", True)
+                w.attributes("-alpha", 0.92)
+                w.configure(bg="#000000")
+                w.geometry(geom)
+                try: ctypes.windll.user32.SetWindowPos(w.winfo_id(), -1, 0,0,0,0, 0x0001|0x0002)
+                except: pass
+                c = tk.Canvas(w, bg="#000000", highlightthickness=0)
+                c.pack(fill="both", expand=True)
+                self._edge_wins.append(w)
+                self._edge_canvases.append(c)
+        except: pass
 
         self._canvas = Canvas(root, width=sw, height=sh, bg="black", highlightthickness=0)
         self._canvas.pack()
@@ -125,14 +202,79 @@ class VisualOverlay:
     def _animate(self):
         if not self._running or not self._canvas:
             return
-        dt = 0.033
+        dt = 0.033  # 30fps cool - balanced fluid + low CPU for Intel Iris
         self._time += dt
-        self._breath_phase += dt * 1.5
-        self._pulse_phase += dt * 3.0
+        self._breath_phase += dt * 1.0
+        self._pulse_phase += dt * 2.0
         self._draw_glow()
         self._draw_flash()
         self._draw_orb()
         self._draw_bars()
+        # Gradient bar with wave like uploaded images (bottom pill, blue -> rainbow)
+        if getattr(self, '_bar_canvas', None) is not None and self._bar_win is not None:
+            try:
+                c = self._bar_canvas
+                c.delete("all")
+                W, H = self._bar_w, self._bar_h
+                R = H//2
+                # Deep charcoal #131314 soft obsidian
+                c.create_oval(0,0, H, H, fill="#131314", outline="")
+                c.create_oval(W-H,0, W, H, fill="#131314", outline="")
+                c.create_rectangle(H//2,0, W-H//2, H, fill="#131314", outline="")
+                # Gradient border + wave
+                # Premium aurora: high blur, fluid, rich — Material 3 dark + glassmorphism
+                def _gcol(t):
+                    # Deep charcoal base with aurora stops: pink->purple->blue->cyan->green
+                    stops=[(0.0,(255,42,122)),(0.18,(138,68,255)),(0.38,(42,91,255)),(0.58,(0,196,255)),(0.78,(48,230,160)),(1.0,(96,255,180))]
+                    for i in range(len(stops)-1):
+                        if t>=stops[i][0] and t<=stops[i+1][0]:
+                            a=(t-stops[i][0])/(stops[i+1][0]-stops[i][0]) if stops[i+1][0]!=stops[i][0] else 0
+                            # Smooth easing for fluid
+                            a = a*a*(3-2*a)
+                            s1,s2=stops[i][1],stops[i+1][1]
+                            return (int(s1[0]*(1-a)+s2[0]*a), int(s1[1]*(1-a)+s2[1]*a), int(s1[2]*(1-a)+s2[2]*a))
+                    return stops[-1][1]
+                t = self._time
+                # Fluid time with easing (spring-like)
+                ease = 0.5*(1+math.sin(t*0.7))  # 0..1 slow drift
+                # Pill bg #131314 with inner glass highlight
+                c.create_oval(1,1, H-1, H-1, fill="#131314", outline="#1e1f22", width=1)
+                c.create_oval(W-H+1,1, W-1, H-1, fill="#131314", outline="#1e1f22", width=1)
+                c.create_rectangle(H//2,1, W-H//2, H-1, fill="#131314", outline="")
+                c.create_rectangle(H//2,2, W-H//2, 6, fill="#1f2022", outline="", stipple="gray50")  # top inner highlight
+                # Aurora border: draw 3 layers with blur (alpha fade) for high-tech depth
+                for layer, alpha, off in [(0, 0.55, 0), (1, 0.28, 1), (2, 0.12, 2)]:
+                    for x in range(W):
+                        tt = (x + t*22 + off*8) / W  # flowing drift
+                        tt = tt % 1.0
+                        wave = math.sin(tt*3.2 + t*0.9)*0.06 + math.sin(tt*7 + t*1.6)*0.03
+                        r,g,b = _gcol(max(0,min(1, tt+wave)))
+                        a = alpha * (0.88 + 0.12*math.sin(self._breath_phase + x*0.008))
+                        r,g,b = int(r*a), int(g*a), int(b*a)
+                        y1, y2 = 1+off, H-2-off
+                        # Only draw border, leave center dark for readability
+                        if x < 2 or x > W-3 or off==0:
+                            c.create_line(x, y1, x+1, y1, fill=f"#{r:02x}{g:02x}{b:02x}")
+                            c.create_line(x, y2, x+1, y2, fill=f"#{r:02x}{g:02x}{b:02x}")
+                # Soft wave inside bottom (first image's aurora)
+                for x in range(16, W-16):
+                    tt = x / W
+                    wy = H - 12 + math.sin(tt*4.5 + t*1.0)*6.5 + math.sin(tt*10 + t*1.7)*3.2
+                    r,g,b = _gcol(tt)
+                    # Blur glow under wave
+                    c.create_line(x, wy+1, x+1, wy+1, fill=f"#{r//4:02x}{g//4:02x}{b//4:02x}", width=6)
+                    c.create_line(x, wy, x+1, wy, fill=f"#{r:02x}{g:02x}{b:02x}", width=2)
+                try:
+                    ctypes.windll.user32.SetWindowPos(self._bar_win.winfo_id(), -1, 0,0,0,0, 0x0001|0x0002)
+                except: pass
+            except: pass
+        # Keep thin top edge faint
+        if hasattr(self, '_edge_wins') and self._edge_wins:
+            try:
+                for w in self._edge_wins:
+                    try: ctypes.windll.user32.SetWindowPos(w.winfo_id(), -1, 0,0,0,0, 0x0001|0x0002)
+                    except: pass
+            except: pass
         if self._flash_alpha > 0:
             self._flash_alpha = max(0, self._flash_alpha - dt * 1.5)
         self._root.after(33, self._animate)
